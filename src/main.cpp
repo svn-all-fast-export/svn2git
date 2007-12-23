@@ -22,6 +22,7 @@
 
 #include "ruleparser.h"
 #include "repository.h"
+#include "svn.h"
 
 int main(int argc, char **argv)
 {
@@ -42,6 +43,16 @@ int main(int argc, char **argv)
     foreach (Rules::Repository rule, rules.repositories())
         repositories.insert(rule.name, new Repository(rule));
 
+    Svn::initialize();
+    Svn svn(arguments.at(2));
+    svn.setMatchRules(rules.matchRules());
+    svn.setRepositories(repositories);
+
+    int max_rev = svn.youngestRevision();
+    for (int i = 1; i < max_rev; ++i)
+        svn.exportRevision(i);
+
+    qDeleteAll(repositories);
     // success
     return 0;
 }
