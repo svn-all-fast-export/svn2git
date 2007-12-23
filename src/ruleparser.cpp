@@ -77,14 +77,19 @@ void Rules::load()
                 branch.branchFrom = repoBranchLine.cap(1);
 
                 repo.branches += branch;
+                continue;
             }
         } else if (state == ReadingMatch) {
-            if (matchRepoLine.exactMatch(line))
+            if (matchRepoLine.exactMatch(line)) {
                 match.repository = matchRepoLine.cap(0);
-            else if (matchBranchLine.exactMatch(line))
+                continue;
+            } else if (matchBranchLine.exactMatch(line)) {
                 match.branch = matchBranchLine.cap(0);
-            else if (matchPathLine.exactMatch(line))
+                continue;
+            } else if (matchPathLine.exactMatch(line)) {
                 match.path = matchPathLine.cap(0);
+                continue;
+            }
         }
 
         bool isRepositoryRule = repoLine.exactMatch(line);
