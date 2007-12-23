@@ -60,58 +60,58 @@ void Rules::load()
     Match match;
     while (!s.atEnd()) {
         QString origLine = s.readLine();
-        QString line = origLine.trimmed();
+        QString line = origLine;
 
         int hash = line.indexOf('#');
-        if (hash != -1) {
+        if (hash != -1)
             line.truncate(hash);
-            line = line.trimmed();
-        }
+        line = line.trimmed();
         if (line.isEmpty())
             continue;
 
         if (state == ReadingRepository) {
             if (repoBranchLine.exactMatch(line)) {
                 Repository::Branch branch;
-                branch.name = repoBranchLine.cap(0);
-                branch.branchFrom = repoBranchLine.cap(1);
+                branch.name = repoBranchLine.cap(1);
+                branch.branchFrom = repoBranchLine.cap(2);
 
                 repo.branches += branch;
+                continue;
+            } else if (line == "end repository") {
+                m_repositories += repo;
+                state = ReadingNone;
                 continue;
             }
         } else if (state == ReadingMatch) {
             if (matchRepoLine.exactMatch(line)) {
-                match.repository = matchRepoLine.cap(0);
+                match.repository = matchRepoLine.cap(1);
                 continue;
             } else if (matchBranchLine.exactMatch(line)) {
-                match.branch = matchBranchLine.cap(0);
+                match.branch = matchBranchLine.cap(1);
                 continue;
             } else if (matchPathLine.exactMatch(line)) {
-                match.path = matchPathLine.cap(0);
+                match.path = matchPathLine.cap(1);
+                continue;
+            } else if (line == "end match") {
+                m_matchRules += match;
+                state = ReadingNone;
                 continue;
             }
         }
 
         bool isRepositoryRule = repoLine.exactMatch(line);
         bool isMatchRule = matchLine.exactMatch(line);
-        if (isRepositoryRule || isMatchRule) {
-            // save the current rule
-            if (state == ReadingRepository)
-                m_repositories += repo;
-            else if (state == ReadingMatch)
-                m_matchRules += match;
-        }
 
         if (isRepositoryRule) {
             // repository rule
             state = ReadingRepository;
             repo = Repository(); // clear
-            repo.name = repoLine.cap(0);
+            repo.name = repoLine.cap(1);
         } else if (isMatchRule) {
             // match rule
             state = ReadingMatch;
             match = Match();
-            match.rx = QRegExp(matchLine.cap(0), Qt::CaseSensitive, QRegExp::RegExp2);
+            match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
         } else {
             qWarning() << "Malformed line in configure file:" << origLine;
             state = ReadingNone;
