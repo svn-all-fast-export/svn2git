@@ -36,16 +36,18 @@ public:
         };
 
         Repository *repository;
-        QByteArray branchRef;
+        QByteArray branch;
         QByteArray svnprefix;
         QByteArray author;
         QByteArray log;
         uint datetime;
         int revnum;
+        int lastmark;
 
         QStringList deletedFiles;
         QHash<QString, FileProperties> modifiedFiles;
 
+        inline Transaction() {}
     public:
         ~Transaction();
         void commit();
