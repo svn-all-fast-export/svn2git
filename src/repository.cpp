@@ -54,9 +54,14 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->revnum = revnum;
     txn->lastmark = revnum;
 
-    if (fastImport.state() == QProcess::NotRunning)
+    if (fastImport.state() == QProcess::NotRunning) {
         // start the process
+#ifndef DRY_RUN
         fastImport.start("git-fast-import", QStringList());
+#else
+        fastImport.start("/bin/cat", QStringList());
+#endif
+    }
 
     return txn;
 }
@@ -91,12 +96,14 @@ QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint6
     fp.mode = mode;
     fp.mark = ++lastmark;
 
+#ifndef DRY_RUN
     repository->fastImport.write("blob\nmark :");
     repository->fastImport.write(QByteArray::number(fp.mark));
     repository->fastImport.write("\ndata ");
     repository->fastImport.write(QByteArray::number(length));
     repository->fastImport.write("\n", 1);
     repository->fastImport.waitForBytesWritten(0);
+#endif
 
     modifiedFiles.insert(path, fp);
     return &repository->fastImport;

@@ -197,13 +197,14 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
     // what type is it?
     int mode = pathMode(fs_root, pathname, pool);
 
-    svn_stream_t *in_stream, *out_stream;
     svn_filesize_t stream_length;
 
     SVN_ERR(svn_fs_file_length(&stream_length, fs_root, pathname, pool));
     QIODevice *io = txn->addFile(pathname, mode, stream_length);
 
+#ifndef DRY_RUN
     // open the file
+    svn_stream_t *in_stream, *out_stream;
     SVN_ERR(svn_fs_file_contents(&in_stream, fs_root, pathname, pool));
 
     // open a generic svn_stream_t for the QIODevice
@@ -212,6 +213,7 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
 
     // print an ending newline
     io->putChar('\n');
+#endif
 
     return EXIT_SUCCESS;
 }
