@@ -9,4 +9,5 @@ INCLUDEPATH += .
 QT = core
 
 # Input
-SOURCES += ruleparser.cpp
+SOURCES += ruleparser.cpp repository.cpp
+HEADERS += ruleparser.h repository.h
