@@ -311,7 +311,7 @@ int SvnPrivate::exportRevision(int revnum)
     svn_pool_clear(revpool);
 
     if (transactions.isEmpty())
-        return true;            // no changes?
+        return EXIT_SUCCESS;    // no changes?
 
     // now create the commit
     apr_hash_t *revprops;

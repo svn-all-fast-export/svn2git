@@ -50,7 +50,8 @@ int main(int argc, char **argv)
 
     int max_rev = svn.youngestRevision();
     for (int i = 1; i < max_rev; ++i)
-        svn.exportRevision(i);
+        if (!svn.exportRevision(i))
+            break;
 
     qDeleteAll(repositories);
     // success
