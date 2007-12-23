@@ -26,18 +26,53 @@
 class Repository
 {
 public:
+    class Transaction
+    {
+        Q_DISABLE_COPY(Transaction)
+        friend class Repository;
+        struct FileProperties {
+            int mode;
+            int mark;
+        };
+
+        Repository *repository;
+        QByteArray branchRef;
+        QByteArray svnprefix;
+        QByteArray author;
+        QByteArray log;
+        uint datetime;
+        int revnum;
+
+        QStringList deletedFiles;
+        QHash<QString, FileProperties> modifiedFiles;
+
+    public:
+        ~Transaction();
+        void commit();
+
+        void setAuthor(const QByteArray &author);
+        void setDateTime(uint dt);
+        void setLog(const QByteArray &log);
+
+        void deleteFile(const QString &path);
+        QIODevice *addFile(const QString &path, int mode, qint64 length);
+    };
+    Repository(const Rules::Repository &rule);
+    ~Repository();
+
+    Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
+
+private:
     struct Branch
     {
         QString branchFrom;
         bool isCreated;
     };
 
-    Repository(const Rules::Repository &rule);
-    ~Repository();
-
-private:
     QHash<QString, Branch> branches;
     QProcess fastImport;
+
+    Q_DISABLE_COPY(Repository)
 };
 
 #endif

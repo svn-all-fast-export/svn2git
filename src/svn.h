@@ -37,7 +37,7 @@ public:
     void setRepositories(const QHash<QString, Repository *> &repositories);
 
     int youngestRevision();
-    void exportRevision(int revnum);
+    bool exportRevision(int revnum);
 
 private:
     SvnPrivate * const d;

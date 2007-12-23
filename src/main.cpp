@@ -42,14 +42,6 @@ int main(int argc, char **argv)
     foreach (Rules::Repository rule, rules.repositories())
         repositories.insert(rule.name, new Repository(rule));
 
-    // verify the match rules
-    foreach (Rules::Match rule, rules.matchRules())
-        if (!repositories.contains(rule.repository)) {
-            fprintf(stderr, "Error: rule \"%s\" references unknown repository \"%s\"\n",
-                    qPrintable(rule.rx.pattern()), qPrintable(rule.repository));
-            return 1;
-        }
-
     // success
     return 0;
 }
