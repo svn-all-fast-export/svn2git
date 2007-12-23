@@ -3,11 +3,11 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = 
+TARGET = ../svn-all-fast-export
 DEPENDPATH += .
 INCLUDEPATH += .
 QT = core
 
 # Input
-SOURCES += ruleparser.cpp repository.cpp
+SOURCES += ruleparser.cpp repository.cpp main.cpp
 HEADERS += ruleparser.h repository.h
