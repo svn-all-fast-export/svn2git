@@ -26,6 +26,10 @@ Rules::Rules(const QString &fn)
 {
 }
 
+Rules::~Rules()
+{
+}
+
 QList<Rules::Repository> Rules::repositories()
 {
     return m_repositories;
