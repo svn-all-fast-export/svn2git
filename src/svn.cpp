@@ -177,6 +177,9 @@ svn_error_t *QIODevice_write(void *baton, const char *data, apr_size_t *len)
 {
     QIODevice *device = reinterpret_cast<QIODevice *>(baton);
     device->write(data, *len);
+
+    if (device->bytesToWrite() > 16384)
+        device->waitForBytesWritten(0);
     return SVN_NO_ERROR;
 }
 
@@ -206,6 +209,9 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
     // open a generic svn_stream_t for the QIODevice
     out_stream = streamForDevice(io, pool);
     SVN_ERR(svn_stream_copy(in_stream, out_stream, pool));
+
+    // print an ending newline
+    io->putChar('\n');
 
     return EXIT_SUCCESS;
 }
