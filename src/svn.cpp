@@ -57,12 +57,15 @@ typedef QHash<QByteArray, QByteArray> IdentityHash;
 class AprAutoPool
 {
     apr_pool_t *pool;
+    AprAutoPool(const AprAutoPool &);
+    AprAutoPool &operator=(const AprAutoPool &);
 public:
     inline AprAutoPool(apr_pool_t *parent = NULL)
         { pool = svn_pool_create(parent); }
     inline ~AprAutoPool()
         { svn_pool_destroy(pool); }
 
+    inline void clear() { svn_pool_clear(pool); }
     inline apr_pool_t *data() const { return pool; }
     inline operator apr_pool_t *() const { return pool; }
 };
@@ -167,7 +170,7 @@ static int pathMode(svn_fs_root_t *fs_root, const char *pathname, apr_pool_t *po
 
     // maybe it's a symlink?
     SVN_ERR(svn_fs_node_prop(&propvalue, fs_root, pathname, "svn:special", pool));
-    if (strcmp(propvalue->data, "symlink") == 0)
+    if (propvalue && strcmp(propvalue->data, "symlink") == 0)
         mode = 0120000;
 
     return mode;
@@ -192,7 +195,7 @@ static svn_stream_t *streamForDevice(QIODevice *device, apr_pool_t *pool)
 }
 
 static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
-                    const char *pathname, apr_pool_t *pool)
+                    const char *pathname, const QString &finalPathName, apr_pool_t *pool)
 {
     // what type is it?
     int mode = pathMode(fs_root, pathname, pool);
@@ -200,7 +203,7 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
     svn_filesize_t stream_length;
 
     SVN_ERR(svn_fs_file_length(&stream_length, fs_root, pathname, pool));
-    QIODevice *io = txn->addFile(pathname, mode, stream_length);
+    QIODevice *io = txn->addFile(finalPathName, mode, stream_length);
 
 #ifndef DRY_RUN
     // open the file
@@ -229,21 +232,20 @@ time_t get_epoch(char *svn_date)
 
 int SvnPrivate::exportRevision(int revnum)
 {
-    AprAutoPool pool(global_pool);
+    AprAutoPool pool(global_pool.data());
 
     // open this revision:
+    qDebug() << "Exporting revision" << revnum;
     svn_fs_root_t *fs_root;
     SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum, pool));
-    qDebug() << "Exporting revision" << revnum;
 
     // find out what was changed in this revision:
     QHash<QString, Repository::Transaction *> transactions;
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed(&changes, fs_root, pool));
-    AprAutoPool revpool(pool);
+    AprAutoPool revpool(pool.data());
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
-        svn_pool_clear(revpool);
-
+        revpool.clear();
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
@@ -259,7 +261,7 @@ int SvnPrivate::exportRevision(int revnum)
 
         // find the first rule that matches this pathname
         bool foundMatch = false;
-        foreach (Rules::Match rule, matchRules)
+        foreach (Rules::Match rule, matchRules) {
             if (rule.rx.exactMatch(current)) {
                 foundMatch = true;
                 QString repository = current;
@@ -271,7 +273,7 @@ int SvnPrivate::exportRevision(int revnum)
                 branch.replace(rule.rx, rule.branch);
                 path.replace(rule.rx, rule.path);
 
-                qDebug() << "..." << current << "->"
+                qDebug() << "..." << current << "rev" << revnum << "->"
                          << repository << branch << path;
 
                 Repository::Transaction *txn = transactions.value(repository, 0);
@@ -284,8 +286,8 @@ int SvnPrivate::exportRevision(int revnum)
                     }
 
                     QString svnprefix = current;
-                    if (current.endsWith(path))
-                        current.chop(path.length());
+                    if (svnprefix.endsWith(path))
+                        svnprefix.chop(path.length());
 
                     txn = repo->newTransaction(branch, svnprefix, revnum);
                     if (!txn)
@@ -298,17 +300,18 @@ int SvnPrivate::exportRevision(int revnum)
                 if (change->change_kind == svn_fs_path_change_delete)
                     txn->deleteFile(path);
                 else
-                    dumpBlob(txn, fs_root, key, revpool);
+                    dumpBlob(txn, fs_root, key, path, revpool);
 
                 break;
             }
+        }
 
         if (!foundMatch) {
             qCritical() << current << "did not match any rules; cannot continue";
             return EXIT_FAILURE;
         }
     }
-    svn_pool_clear(revpool);
+    revpool.clear();
 
     if (transactions.isEmpty())
         return EXIT_SUCCESS;    // no changes?

@@ -17,8 +17,10 @@
 
 #include "repository.h"
 #include <QTextStream>
+#include <QDebug>
 
 Repository::Repository(const Rules::Repository &rule)
+    : name(rule.name)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
@@ -27,6 +29,9 @@ Repository::Repository(const Rules::Repository &rule)
 
         branches.insert(branchRule.name, branch);
     }
+
+    // create the default branch
+    branches["master"].isCreated = true;
 
     fastImport.setWorkingDirectory(rule.name);
     fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
@@ -43,8 +48,10 @@ Repository::~Repository()
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
                                                     int revnum)
 {
-    if (!branches.contains(branch))
+    if (!branches.contains(branch)) {
+        qCritical() << branch << "is not known in repository" << name;
         return 0;
+    }
 
     Transaction *txn = new Transaction;
     txn->repository = this;
@@ -125,7 +132,7 @@ void Repository::Transaction::commit()
         QTextStream s(&repository->fastImport);
         s << "commit " << branchRef << endl;
         s << "mark :" << revnum << endl;
-        s << "committer " << author << ' ' << datetime << "-0000" << endl;
+        s << "committer " << author << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
         if (!br.isCreated) {

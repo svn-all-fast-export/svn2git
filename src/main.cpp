@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     svn.setRepositories(repositories);
 
     int max_rev = svn.youngestRevision();
-    for (int i = 1; i < max_rev; ++i)
+    for (int i = 1; i <= max_rev; ++i)
         if (!svn.exportRevision(i))
             break;
 

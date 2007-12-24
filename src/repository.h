@@ -72,6 +72,7 @@ private:
     };
 
     QHash<QString, Branch> branches;
+    QString name;
     QProcess fastImport;
 
     Q_DISABLE_COPY(Repository)
