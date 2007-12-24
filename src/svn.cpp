@@ -303,6 +303,10 @@ int SvnPrivate::exportRevision(int revnum)
         // find the first rule that matches this pathname
         bool foundMatch = false;
         foreach (Rules::Match rule, matchRules) {
+            if (rule.minRevision > revnum)
+                continue;
+            if (rule.maxRevision != -1 && rule.maxRevision < revnum)
+                continue;
             if (rule.rx.exactMatch(current)) {
                 foundMatch = true;
                 QString repository = current;

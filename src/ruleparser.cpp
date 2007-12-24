@@ -49,10 +49,12 @@ void Rules::load()
     // initialize the regexps we will use
     QRegExp repoLine("create repository\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp repoBranchLine("branch\\s+(\\S+)\\s+from\\s+(\\S+)", Qt::CaseInsensitive);
+
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchPathLine("path\\s+(.*)", Qt::CaseInsensitive);
+    QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
 
     QTextStream s(&file);
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
@@ -91,6 +93,12 @@ void Rules::load()
                 continue;
             } else if (matchPathLine.exactMatch(line)) {
                 match.path = matchPathLine.cap(1);
+                continue;
+            } else if (matchRevLine.exactMatch(line)) {
+                if (matchRevLine.cap(1) == "min")
+                    match.minRevision = matchRevLine.cap(2).toInt();
+                else            // must be max
+                    match.maxRevision = matchRevLine.cap(2).toInt();
                 continue;
             } else if (line == "end match") {
                 m_matchRules += match;

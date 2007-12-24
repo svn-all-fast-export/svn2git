@@ -43,6 +43,10 @@ public:
         QString repository;
         QString branch;
         QString path;
+        int minRevision;
+        int maxRevision;
+
+        Match() : minRevision(-1), maxRevision(-1) { }
     };
 
     Rules(const QString &filename);
