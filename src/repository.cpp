@@ -156,7 +156,7 @@ void Repository::Transaction::commit()
     QByteArray message = log;
     if (!message.endsWith('\n'))
         message += '\n';
-    message += "\nsvn=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
+    message += "\nsvn path=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
 
     {
         QByteArray branchRef = branch;
