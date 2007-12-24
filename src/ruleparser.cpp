@@ -51,6 +51,7 @@ void Rules::load()
     QRegExp repoBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
 
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
+    QRegExp matchActionLine("action\\s+(\\w+)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
@@ -97,7 +98,20 @@ void Rules::load()
                 else            // must be max
                     match.maxRevision = matchRevLine.cap(2).toInt();
                 continue;
+            } else if (matchActionLine.exactMatch(line)) {
+                QString action = matchActionLine.cap(1);
+                if (action == "export")
+                    match.action = Match::Export;
+                else if (action == "ignore")
+                    match.action = Match::Ignore;
+                else if (action == "recurse")
+                    match.action = Match::Recurse;
+                else
+                    qFatal("Invalid action \"%s\" on line %d", qPrintable(action), lineNumber);
+                continue;
             } else if (line == "end match") {
+                if (!match.repository.isEmpty())
+                    match.action = Match::Export;
                 m_matchRules += match;
                 state = ReadingNone;
                 continue;

@@ -48,7 +48,13 @@ public:
         int maxRevision;
         int lineNumber;
 
-        Match() : minRevision(-1), maxRevision(-1), lineNumber(0) { }
+        enum Action {
+            Ignore,
+            Export,
+            Recurse
+        } action;
+
+        Match() : minRevision(-1), maxRevision(-1), lineNumber(0), action(Ignore) { }
     };
 
     Rules(const QString &filename);

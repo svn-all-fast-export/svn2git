@@ -237,22 +237,23 @@ static svn_stream_t *streamForDevice(QIODevice *device, apr_pool_t *pool)
 static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
                     const char *pathname, const QString &finalPathName, apr_pool_t *pool)
 {
+    AprAutoPool dumppool(pool);
     // what type is it?
-    int mode = pathMode(fs_root, pathname, pool);
+    int mode = pathMode(fs_root, pathname, dumppool);
 
     svn_filesize_t stream_length;
 
-    SVN_ERR(svn_fs_file_length(&stream_length, fs_root, pathname, pool));
+    SVN_ERR(svn_fs_file_length(&stream_length, fs_root, pathname, dumppool));
     QIODevice *io = txn->addFile(finalPathName, mode, stream_length);
 
 #ifndef DRY_RUN
     // open the file
     svn_stream_t *in_stream, *out_stream;
-    SVN_ERR(svn_fs_file_contents(&in_stream, fs_root, pathname, pool));
+    SVN_ERR(svn_fs_file_contents(&in_stream, fs_root, pathname, dumppool));
 
     // open a generic svn_stream_t for the QIODevice
-    out_stream = streamForDevice(io, pool);
-    SVN_ERR(svn_stream_copy(in_stream, out_stream, pool));
+    out_stream = streamForDevice(io, dumppool);
+    SVN_ERR(svn_stream_copy(in_stream, out_stream, dumppool));
 
     // print an ending newline
     io->putChar('\n');
@@ -294,6 +295,8 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
                 return EXIT_FAILURE;
         }
     }
+
+    return EXIT_SUCCESS;
 }
 
 static bool wasDir(svn_fs_t *fs, int revnum, const char *pathname, apr_pool_t *pool)
@@ -319,159 +322,91 @@ time_t get_epoch(char *svn_date)
     return mktime(&tm);
 }
 
+class SvnRevision
+{
+public:
+    AprAutoPool pool;
+    QHash<QString, Repository::Transaction *> transactions;
+    MatchRuleList matchRules;
+    RepositoryHash repositories;
+    IdentityHash identities;
+
+    svn_fs_t *fs;
+    svn_fs_root_t *fs_root;
+    int revnum;
+
+    SvnRevision(int revision, svn_fs_t *f, apr_pool_t *parent_pool)
+        : pool(parent_pool), fs(f), fs_root(0), revnum(revision)
+    {
+    }
+
+    int open()
+    {
+        SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum, pool));
+        return EXIT_SUCCESS;
+    }
+
+    int prepareTransactions();
+    int commit();
+
+    int exportEntry(const char *path, const svn_fs_path_change_t *change);
+    int exportInternal(const char *path, const svn_fs_path_change_t *change,
+                       const char *path_from, svn_revnum_t rev_from,
+                       const QString &current, const Rules::Match &rule);
+    int recurse(const char *path, const svn_fs_path_change_t *change,
+                const char *path_from, svn_revnum_t rev_from, apr_pool_t *pool);
+};
+
 int SvnPrivate::exportRevision(int revnum)
 {
-    AprAutoPool pool(global_pool.data());
-    QHash<QString, Repository::Transaction *> transactions;
+    SvnRevision rev(revnum, fs, global_pool);
+    rev.matchRules = matchRules;
+    rev.repositories = repositories;
+    rev.identities = identities;
 
     // open this revision:
     printf("Exporting revision %d ", revnum);
     fflush(stdout);
-    svn_fs_root_t *fs_root;
-    SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum, pool));
 
+    if (rev.open() == EXIT_FAILURE)
+        return EXIT_FAILURE;
+
+    if (rev.prepareTransactions() == EXIT_FAILURE)
+        return EXIT_FAILURE;
+
+    if (rev.transactions.isEmpty()) {
+        printf(" nothing to do\n");
+        return EXIT_SUCCESS;    // no changes?
+    }
+
+    if (rev.commit() == EXIT_FAILURE)
+        return EXIT_FAILURE;
+
+    printf(" done\n");
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::prepareTransactions()
+{
     // find out what was changed in this revision:
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed(&changes, fs_root, pool));
-    AprAutoPool revpool(pool.data());
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
-        revpool.clear();
-
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         const char *key = reinterpret_cast<const char *>(vkey);
-        QString current = QString::fromUtf8(key);
         svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
 
-        // was this copied from somewhere?
-        svn_revnum_t rev_from;
-        const char *path_from;
-        SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
-
-        // is this a directory?
-        svn_boolean_t is_dir;
-        SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
-        if (is_dir) {
-            if (path_from == NULL) {
-                // no, it's a new directory being added
-                // Git doesn't handle directories, so we don't either
-                //qDebug() << "   mkdir ignored:" << key;
-                continue;
-            }
-
-            current += '/';
-            qDebug() << "   " << key << "was copied from" << path_from;
-        }
-
-        // find the first rule that matches this pathname
-        MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
-        if (match != matchRules.constEnd()) {
-            const Rules::Match &rule = *match;
-            if (rule.repository.isEmpty()) {
-                // ignore rule
-                qDebug() << "   " << qPrintable(current) << "rev" << revnum
-                         << "-> ignored (rule line" << rule.lineNumber << ")";
-                continue;
-            } else {
-                QString svnprefix, repository, branch, path;
-                splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
-
-                if (path.isEmpty() && path_from != NULL) {
-                    QString previous = QString::fromUtf8(path_from) + '/';
-                    MatchRuleList::ConstIterator prevmatch =
-                        findMatchRule(matchRules, rev_from, previous);
-                    if (prevmatch != matchRules.constEnd()) {
-                        QString prevsvnprefix, prevrepository, prevbranch, prevpath;
-                        splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
-                                      &prevbranch, &prevpath);
-
-                        if (!prevpath.isEmpty()) {
-                            qDebug() << qPrintable(current) << "is a partial branch of repository"
-                                     << qPrintable(prevrepository) << "branch"
-                                     << qPrintable(prevbranch) << "subdir"
-                                     << qPrintable(prevpath);
-                        } else if (prevrepository != repository) {
-                            qWarning() << qPrintable(current) << "rev" << revnum
-                                       << "is a cross-repository copy (from repository"
-                                       << qPrintable(prevrepository) << "branch"
-                                       << qPrintable(prevbranch) << "path"
-                                       << qPrintable(prevpath) << "rev" << rev_from << ")";
-                        } else if (prevbranch == branch) {
-                            // same branch and same repository
-                            qDebug() << qPrintable(current) << "rev" << revnum
-                                     << "is an SVN rename from"
-                                     << qPrintable(previous) << "rev" << rev_from;
-                            continue;
-                        } else {
-                            // same repository but not same branch
-                            // this means this is a plain branch
-                            qDebug() << qPrintable(repository) << ": branch"
-                                     << qPrintable(branch) << "is branching from"
-                                     << qPrintable(prevbranch);
-
-                            Repository *repo = repositories.value(repository, 0);
-                            if (!repo) {
-                                qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
-                                            << "references unknown repository" << repository;
-                                return EXIT_FAILURE;
-                            }
-
-                            repo->createBranch(branch, revnum, prevbranch, rev_from);
-                        }
-                    }
-                }
-
-                printf(".");
-                fflush(stdout);
-//                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
-//                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
-
-                Repository::Transaction *txn = transactions.value(repository, 0);
-                if (!txn) {
-                    Repository *repo = repositories.value(repository, 0);
-                    if (!repo) {
-                        qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
-                                    << "references unknown repository" << repository;
-                        return EXIT_FAILURE;
-                    }
-
-                    txn = repo->newTransaction(branch, svnprefix, revnum);
-                    if (!txn)
-                        return EXIT_FAILURE;
-
-                    transactions.insert(repository, txn);
-                }
-
-                if (change->change_kind == svn_fs_path_change_delete)
-                    txn->deleteFile(path);
-                else if (!is_dir)
-                    dumpBlob(txn, fs_root, key, path, revpool);
-                else
-                    recursiveDumpDir(txn, fs_root, key, path, revpool);
-
-                continue;
-            }
-        }
-
-        if (is_dir) {
-            qDebug() << current << "is a new directory; ignoring";
-        } else if (wasDir(fs, revnum - 1, key, pool)) {
-            qDebug() << current << "was a directory; ignoring";
-        } else if (change->change_kind == svn_fs_path_change_delete) {
-            qDebug() << current << "is being deleted but I don't know anything about it; ignoring";
-        } else {
-            qCritical() << current << "did not match any rules; cannot continue";
+        if (exportEntry(key, change) == EXIT_FAILURE)
             return EXIT_FAILURE;
-        }
-    }
-    revpool.clear();
-
-    if (transactions.isEmpty()) {
-        printf("nothing to do\n");
-        return EXIT_SUCCESS;    // no changes?
     }
 
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::commit()
+{
     // now create the commit
     apr_hash_t *revprops;
     SVN_ERR(svn_fs_revision_proplist(&revprops, fs, revnum, pool));
@@ -499,6 +434,185 @@ int SvnPrivate::exportRevision(int revnum)
         delete txn;
     }
 
-    printf("done\n");
     return EXIT_SUCCESS;
+}
+
+int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change)
+{
+    AprAutoPool revpool(pool.data());
+    QString current = QString::fromUtf8(key);
+
+    // was this copied from somewhere?
+    svn_revnum_t rev_from;
+    const char *path_from;
+    SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
+
+    // is this a directory?
+    svn_boolean_t is_dir;
+    SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, pool));
+    if (is_dir) {
+        if (path_from == NULL) {
+            // no, it's a new directory being added
+            // Git doesn't handle directories, so we don't either
+            //qDebug() << "   mkdir ignored:" << key;
+            return EXIT_SUCCESS;
+        }
+
+        current += '/';
+        qDebug() << "   " << key << "was copied from" << path_from;
+    }
+
+    // find the first rule that matches this pathname
+    MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
+    if (match != matchRules.constEnd()) {
+        const Rules::Match &rule = *match;
+        switch (rule.action) {
+        case Rules::Match::Ignore:
+            // ignore rule
+            qDebug() << "   " << qPrintable(current) << "rev" << revnum
+                     << "-> ignored (rule line" << rule.lineNumber << ")";
+            return EXIT_SUCCESS;
+
+        case Rules::Match::Recurse:
+            // recurse rule
+            if (is_dir)
+                return recurse(key, change, path_from, rev_from, revpool);
+            if (change->change_kind != svn_fs_path_change_delete)
+                qWarning() << "   recurse rule " << rule.rx.pattern() << "line" << rule.lineNumber
+                           << "applied to non-directory:" << qPrintable(current);
+            return EXIT_SUCCESS;
+
+        case Rules::Match::Export:
+            return exportInternal(key, change, path_from, rev_from, current, rule);
+        }
+    }
+
+    if (wasDir(fs, revnum - 1, key, pool)) {
+        qDebug() << current << "was a directory; ignoring";
+    } else if (change->change_kind == svn_fs_path_change_delete) {
+        qDebug() << current << "is being deleted but I don't know anything about it; ignoring";
+    } else {
+        qCritical() << current << "did not match any rules; cannot continue";
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *change,
+                                const char *path_from, svn_revnum_t rev_from,
+                                const QString &current, const Rules::Match &rule)
+{
+    QString svnprefix, repository, branch, path;
+    splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
+
+    printf(".");
+    fflush(stdout);
+//                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
+//                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
+
+    if (path.isEmpty() && path_from != NULL) {
+        QString previous = QString::fromUtf8(path_from) + '/';
+        MatchRuleList::ConstIterator prevmatch =
+            findMatchRule(matchRules, rev_from, previous);
+        if (prevmatch != matchRules.constEnd()) {
+            QString prevsvnprefix, prevrepository, prevbranch, prevpath;
+            splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
+                          &prevbranch, &prevpath);
+
+            if (!prevpath.isEmpty()) {
+                qDebug() << qPrintable(current) << "is a partial branch of repository"
+                         << qPrintable(prevrepository) << "branch"
+                         << qPrintable(prevbranch) << "subdir"
+                         << qPrintable(prevpath);
+            } else if (prevrepository != repository) {
+                qWarning() << qPrintable(current) << "rev" << revnum
+                           << "is a cross-repository copy (from repository"
+                           << qPrintable(prevrepository) << "branch"
+                           << qPrintable(prevbranch) << "path"
+                           << qPrintable(prevpath) << "rev" << rev_from << ")";
+            } else if (prevbranch == branch) {
+                // same branch and same repository
+                qDebug() << qPrintable(current) << "rev" << revnum
+                         << "is an SVN rename from"
+                         << qPrintable(previous) << "rev" << rev_from;
+                return EXIT_SUCCESS;
+            } else {
+                // same repository but not same branch
+                // this means this is a plain branch
+                qDebug() << qPrintable(repository) << ": branch"
+                         << qPrintable(branch) << "is branching from"
+                         << qPrintable(prevbranch);
+
+                Repository *repo = repositories.value(repository, 0);
+                if (!repo) {
+                    qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
+                                << "references unknown repository" << repository;
+                    return EXIT_FAILURE;
+                }
+
+                repo->createBranch(branch, revnum, prevbranch, rev_from);
+            }
+        }
+    }
+
+    Repository::Transaction *txn = transactions.value(repository, 0);
+    if (!txn) {
+        Repository *repo = repositories.value(repository, 0);
+        if (!repo) {
+            qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
+                        << "references unknown repository" << repository;
+            return EXIT_FAILURE;
+        }
+
+        txn = repo->newTransaction(branch, svnprefix, revnum);
+        if (!txn)
+            return EXIT_FAILURE;
+
+        transactions.insert(repository, txn);
+    }
+
+    if (change->change_kind == svn_fs_path_change_delete)
+        txn->deleteFile(path);
+    else if (!current.endsWith('/'))
+        dumpBlob(txn, fs_root, key, path, pool);
+    else
+        recursiveDumpDir(txn, fs_root, key, path, pool);
+
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
+                         const char *path_from, svn_revnum_t rev_from,
+                         apr_pool_t *pool)
+{
+    // get the dir listing
+    apr_hash_t *entries;
+    SVN_ERR(svn_fs_dir_entries(&entries, fs_root, path, pool));
+
+    AprAutoPool dirpool(pool);
+    for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
+        dirpool.clear();
+        const void *vkey;
+        void *value;
+        apr_hash_this(i, &vkey, NULL, &value);
+
+        svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+        QByteArray entry = path + QByteArray("/") + dirent->name;
+        QByteArray entryFrom = path_from + QByteArray("/") + dirent->name;
+
+        QString current = QString::fromUtf8(entry);
+        if (dirent->kind == svn_node_dir)
+            current += '/';
+
+        // find the first rule that matches this pathname
+        MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
+        if (match != matchRules.constEnd()) {
+            if (exportInternal(entry, change, entryFrom, rev_from, current, *match) == EXIT_FAILURE)
+                return EXIT_FAILURE;
+        } else {
+            qCritical() << current << "did not match any rules; cannot continue";
+            return EXIT_FAILURE;
+        }
+    }
 }
