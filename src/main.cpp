@@ -36,10 +36,18 @@ int main(int argc, char **argv)
     Rules rules(options.ruleFile);
     rules.load();
 
+    int min_rev = options.options.value("resume-from").toInt();
+    if (min_rev < 1)
+        min_rev = 1;
+
     // create the repository list
     QHash<QString, Repository *> repositories;
-    foreach (Rules::Repository rule, rules.repositories())
-        repositories.insert(rule.name, new Repository(rule));
+    foreach (Rules::Repository rule, rules.repositories()) {
+        Repository *repo = new Repository(rule);
+        if (min_rev > 1)
+            repo->reloadBranches();
+        repositories.insert(rule.name, repo);
+    }
 
     Svn::initialize();
     Svn svn(options.pathToRepository);
@@ -47,7 +55,7 @@ int main(int argc, char **argv)
     svn.setRepositories(repositories);
 
     int max_rev = svn.youngestRevision();
-    for (int i = 1; i <= max_rev; ++i)
+    for (int i = min_rev; i <= max_rev; ++i)
         if (!svn.exportRevision(i))
             break;
 

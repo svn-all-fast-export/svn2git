@@ -33,7 +33,7 @@ Repository::Repository(const Rules::Repository &rule)
     // create the default branch
     branches["master"].isCreated = true;
 
-    fastImport.setWorkingDirectory(rule.name);
+    fastImport.setWorkingDirectory(name);
     fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
 }
 
@@ -42,6 +42,36 @@ Repository::~Repository()
     if (fastImport.state() == QProcess::Running) {
         fastImport.closeWriteChannel();
         fastImport.waitForFinished();
+    }
+}
+
+void Repository::reloadBranches()
+{
+    QHash<QString, Branch>::Iterator it = branches.begin(),
+                                    end = branches.end();
+    for ( ; it != end; ++it) {
+        QString branchRef = it.key();
+        if (!branchRef.startsWith("refs/heads/"))
+            branchRef.prepend("refs/heads/");
+
+        bool branchExists;
+        // does this branch already exist?
+        QProcess revParse;
+        revParse.setWorkingDirectory(name);
+        revParse.start("git-rev-parse", QStringList() << "--verify" << branchRef);
+        revParse.waitForFinished();
+
+        if (revParse.exitCode() == 0)
+            branchExists = true;
+        else
+            branchExists = false;
+
+        if (branchExists) {
+            startFastImport();
+            fastImport.write("reset " + branchRef.toUtf8() +
+                             "\nfrom " + branchRef.toUtf8() + "^0\n");
+            it->isCreated = true;
+        }
     }
 }
 
@@ -61,6 +91,12 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->revnum = revnum;
     txn->lastmark = revnum;
 
+    startFastImport();
+    return txn;
+}
+
+void Repository::startFastImport()
+{
     if (fastImport.state() == QProcess::NotRunning) {
         // start the process
 #ifndef DRY_RUN
@@ -69,8 +105,6 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
         fastImport.start("/bin/cat", QStringList());
 #endif
     }
-
-    return txn;
 }
 
 Repository::Transaction::~Transaction()

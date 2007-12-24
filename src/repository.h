@@ -62,6 +62,7 @@ public:
     Repository(const Rules::Repository &rule);
     ~Repository();
 
+    void reloadBranches();
     Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
 
 private:
@@ -74,6 +75,8 @@ private:
     QHash<QString, Branch> branches;
     QString name;
     QProcess fastImport;
+
+    void startFastImport();
 
     Q_DISABLE_COPY(Repository)
 };
