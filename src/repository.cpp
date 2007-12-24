@@ -81,7 +81,7 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
                                                     int revnum)
 {
     if (!branches.contains(branch)) {
-        qCritical() << branch << "is not known in repository" << name;
+        qCritical() << branch << "is not a known branch in repository" << name;
         return 0;
     }
 
