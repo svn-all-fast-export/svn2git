@@ -45,7 +45,7 @@ void Options::parseArguments(const QStringList &argumentList)
     validOptions << "help";
 
     QSet<QString> validOptionsWithComplement;
-    validOptionsWithComplement << "resume-from" << "identity-map";
+    validOptionsWithComplement << "resume-from" << "max-rev" << "identity-map";
 
     QStringList arguments = argumentList;
     arguments.takeFirst();           // the first one is the executable name; drop it

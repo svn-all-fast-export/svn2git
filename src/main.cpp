@@ -37,6 +37,7 @@ int main(int argc, char **argv)
     rules.load();
 
     int min_rev = options.options.value("resume-from").toInt();
+    int max_rev = options.options.value("max-rev").toInt();
     if (min_rev < 1)
         min_rev = 1;
 
@@ -54,7 +55,8 @@ int main(int argc, char **argv)
     svn.setMatchRules(rules.matchRules());
     svn.setRepositories(repositories);
 
-    int max_rev = svn.youngestRevision();
+    if (max_rev < 1)
+        max_rev = svn.youngestRevision();
     for (int i = min_rev; i <= max_rev; ++i)
         if (!svn.exportRevision(i))
             break;
