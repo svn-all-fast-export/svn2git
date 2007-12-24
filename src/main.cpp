@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 
+#include "options.h"
 #include "ruleparser.h"
 #include "repository.h"
 #include "svn.h"
@@ -28,14 +29,11 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
-    QStringList arguments = app.arguments();
-    if (arguments.count() < 3) {
-        printf("Usage: svn-all-fast-export configfile path-to-svn\n");
-        return 0;
-    }
+    Options options;
+    options.parseArguments(app.arguments());
 
     // Load the configuration
-    Rules rules(arguments.at(1));
+    Rules rules(options.ruleFile);
     rules.load();
 
     // create the repository list
@@ -44,7 +42,7 @@ int main(int argc, char **argv)
         repositories.insert(rule.name, new Repository(rule));
 
     Svn::initialize();
-    Svn svn(arguments.at(2));
+    Svn svn(options.pathToRepository);
     svn.setMatchRules(rules.matchRules());
     svn.setRepositories(repositories);
 
