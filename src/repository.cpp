@@ -69,7 +69,7 @@ void Repository::reloadBranches()
         if (branchExists) {
             startFastImport();
             fastImport.write("reset " + branchRef.toUtf8() +
-                             "\nfrom " + branchRef.toUtf8() + "^0\n");
+                             "\nfrom " + branchRef.toUtf8() + "^0\n\n");
             it->isCreated = true;
         }
     }
