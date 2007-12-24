@@ -117,11 +117,13 @@ void Rules::load()
             state = ReadingRepository;
             repo = Repository(); // clear
             repo.name = repoLine.cap(1);
+            repo.lineNumber = lineNumber;
         } else if (isMatchRule) {
             // match rule
             state = ReadingMatch;
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
+            match.lineNumber = lineNumber;
         } else {
             qFatal("Malformed line in rules file: line %d: %s",
                    lineNumber, qPrintable(origLine));

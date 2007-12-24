@@ -346,7 +346,7 @@ int SvnPrivate::exportRevision(int revnum)
                 if (!txn) {
                     Repository *repo = repositories.value(repository, 0);
                     if (!repo) {
-                        qCritical() << "Rule" << rule.rx.pattern()
+                        qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
                                     << "references unknown repository" << repository;
                         return EXIT_FAILURE;
                     }

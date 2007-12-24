@@ -35,6 +35,9 @@ public:
 
         QString name;
         QList<Branch> branches;
+        int lineNumber;
+
+        Repository() : lineNumber(0) { }
     };
 
     struct Match
@@ -45,8 +48,9 @@ public:
         QString path;
         int minRevision;
         int maxRevision;
+        int lineNumber;
 
-        Match() : minRevision(-1), maxRevision(-1) { }
+        Match() : minRevision(-1), maxRevision(-1), lineNumber(0) { }
     };
 
     Rules(const QString &filename);
