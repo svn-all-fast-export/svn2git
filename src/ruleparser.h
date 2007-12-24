@@ -30,7 +30,6 @@ public:
         struct Branch
         {
             QString name;
-            QString branchFrom;
         };
 
         QString name;

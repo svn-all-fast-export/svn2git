@@ -70,7 +70,6 @@ public:
 private:
     struct Branch
     {
-        QString branchFrom;
         bool isCreated;
     };
 

@@ -353,7 +353,7 @@ int SvnPrivate::exportRevision(int revnum)
             if (path_from == NULL) {
                 // no, it's a new directory being added
                 // Git doesn't handle directories, so we don't either
-                qDebug() << "   mkdir ignored:" << key;
+                //qDebug() << "   mkdir ignored:" << key;
                 continue;
             }
 

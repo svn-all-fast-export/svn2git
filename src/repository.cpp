@@ -24,9 +24,6 @@ Repository::Repository(const Rules::Repository &rule)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
-        branch.branchFrom = branchRule.branchFrom;
-        if (!branch.branchFrom.startsWith("refs/"))
-            branch.branchFrom.prepend("refs/heads/");
         branch.isCreated = false;
 
         branches.insert(branchRule.name, branch);
@@ -204,7 +201,6 @@ void Repository::Transaction::commit()
         Branch &br = repository->branches[branch];
         if (!br.isCreated) {
             br.isCreated = true;
-            s << "from " << br.branchFrom << endl;
         }
 
         s << "data " << message.length() << endl;

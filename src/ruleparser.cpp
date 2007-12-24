@@ -48,7 +48,7 @@ void Rules::load()
 
     // initialize the regexps we will use
     QRegExp repoLine("create repository\\s+(\\S+)", Qt::CaseInsensitive);
-    QRegExp repoBranchLine("branch\\s+(\\S+)\\s+from\\s+(\\S+)", Qt::CaseInsensitive);
+    QRegExp repoBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
 
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
@@ -76,7 +76,6 @@ void Rules::load()
             if (repoBranchLine.exactMatch(line)) {
                 Repository::Branch branch;
                 branch.name = repoBranchLine.cap(1);
-                branch.branchFrom = repoBranchLine.cap(2);
 
                 repo.branches += branch;
                 continue;
