@@ -25,7 +25,7 @@ Repository::Repository(const Rules::Repository &rule)
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
         branch.branchFrom = branchRule.branchFrom;
-        if (!branch.branchFrom.startsWith("refs/heads/"))
+        if (!branch.branchFrom.startsWith("refs/"))
             branch.branchFrom.prepend("refs/heads/");
         branch.isCreated = false;
 
@@ -53,7 +53,7 @@ void Repository::reloadBranches()
                                     end = branches.end();
     for ( ; it != end; ++it) {
         QString branchRef = it.key();
-        if (!branchRef.startsWith("refs/heads/"))
+        if (!branchRef.startsWith("refs/"))
             branchRef.prepend("refs/heads/");
 
         bool branchExists;
@@ -162,7 +162,7 @@ void Repository::Transaction::commit()
 
     {
         QByteArray branchRef = branch;
-        if (!branchRef.startsWith("refs/heads/"))
+        if (!branchRef.startsWith("refs/"))
             branchRef.prepend("refs/heads/");
 
         QTextStream s(&repository->fastImport);
