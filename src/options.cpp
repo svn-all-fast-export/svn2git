@@ -44,9 +44,8 @@ void Options::parseArguments(const QStringList &argumentList)
     QSet<QString> validOptions;
     validOptions << "help";
 
-    QHash<QString, QString> optionsWithComplement;
-    optionsWithComplement.insert("resume-from", QString());
-    optionsWithComplement.insert("identity-map", QString());
+    QSet<QString> validOptionsWithComplement;
+    validOptionsWithComplement << "resume-from" << "identity-map";
 
     QStringList arguments = argumentList;
     arguments.takeFirst();           // the first one is the executable name; drop it
@@ -65,6 +64,7 @@ void Options::parseArguments(const QStringList &argumentList)
             arg = arg.mid(4);
         } else if (!arg.startsWith("-")) {
             // non-option arg
+            arguments.prepend(arg);
             break;
         } else { // starts with "-"
             arg = arg.mid(1);
@@ -76,39 +76,38 @@ void Options::parseArguments(const QStringList &argumentList)
             arg.truncate(pos);
         }
 
-        if (optionsWithComplement.contains(arg)) {
+        if (validOptionsWithComplement.contains(arg)) {
             if (arguments.isEmpty()) {
-                fprintf(stderr, "Option -%s requires an argument", qPrintable(arg));
+                fprintf(stderr, "Option -%s requires an argument\n", qPrintable(arg));
                 exit(2);
             }
 
-            QString &setting = optionsWithComplement[arg];
-            if (!setting.isNull()) {
-                fprintf(stderr, "Option -%s given more than once", qPrintable(arg));
+            if (options.contains(arg)) {
+                fprintf(stderr, "Option -%s given more than once\n", qPrintable(arg));
                 exit(2);
             }
 
             if (!complement.isEmpty())
-                setting = complement;
+                options[arg] = complement;
             else if (!arguments.isEmpty())
-                setting = arguments.takeFirst();
+                options[arg] = arguments.takeFirst();
             else {
-                fprintf(stderr, "Option -%s requires an argument", qPrintable(arg));
+                fprintf(stderr, "Option -%s requires an argument\n", qPrintable(arg));
                 exit(2);
             }
             continue;
         } else if (validOptions.contains(arg)) {
             if (switches.contains(arg)) {
-                fprintf(stderr, "Option -%s given more than once", qPrintable(arg));
+                fprintf(stderr, "Option -%s given more than once\n", qPrintable(arg));
                 exit(2);
             }
 
             switches[arg] = !(complement == "no");
         } else {
             if (complement == "no")
-                fprintf(stderr, "Invalid option: -no-%s", qPrintable(arg));
+                fprintf(stderr, "Invalid option: -no-%s\n", qPrintable(arg));
             else
-                fprintf(stderr, "Invalid option: -%s", qPrintable(arg));
+                fprintf(stderr, "Invalid option: -%s\n", qPrintable(arg));
             exit(2);
         }
     }
