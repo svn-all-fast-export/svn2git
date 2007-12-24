@@ -341,6 +341,7 @@ int SvnPrivate::exportRevision(int revnum)
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         const char *key = reinterpret_cast<const char *>(vkey);
+        QString current = QString::fromUtf8(key);
 
         // was this copied from somewhere?
         svn_revnum_t rev_from;
@@ -358,12 +359,9 @@ int SvnPrivate::exportRevision(int revnum)
                 continue;
             }
 
+            current += '/';
             qDebug() << "   " << key << "was copied from" << path_from;
         }
-
-        QString current = QString::fromUtf8(key);
-        if (is_dir)
-            current += '/';
 
         // find the first rule that matches this pathname
         MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
@@ -467,8 +465,10 @@ int SvnPrivate::exportRevision(int revnum)
     }
     revpool.clear();
 
-    if (transactions.isEmpty())
+    if (transactions.isEmpty()) {
+        printf("nothing to do\n");
         return EXIT_SUCCESS;    // no changes?
+    }
 
     // now create the commit
     apr_hash_t *revprops;
@@ -497,6 +497,6 @@ int SvnPrivate::exportRevision(int revnum)
         delete txn;
     }
 
-    printf("\n");
+    printf("done\n");
     return EXIT_SUCCESS;
 }
