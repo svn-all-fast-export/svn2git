@@ -76,6 +76,36 @@ void Repository::reloadBranches()
     }
 }
 
+void Repository::createBranch(const QString &branch, int revnum,
+                              const QString &branchFrom, int)
+{
+    if (!branches.contains(branch)) {
+        qCritical() << branch << "is not a known branch in repository" << name;
+        exit(1);
+    }
+
+    startFastImport();
+    QByteArray branchRef = branch.toUtf8();
+    if (!branchRef.startsWith("refs/"))
+        branchRef.prepend("refs/heads/");
+
+    Branch &br = branches[branch];
+    if (br.isCreated) {
+        QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
+        qWarning() << branch << "already exists; backing up to" << backupBranch;
+
+        fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
+    }
+
+    // now create the branch
+    br.isCreated = true;
+    QByteArray branchFromRef = branchFrom.toUtf8();
+    if (!branchFromRef.startsWith("refs/"))
+        branchFromRef.prepend("refs/heads/");
+
+    fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n");
+}
+
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
                                                     int revnum)
 {

@@ -178,6 +178,27 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
     return end;
 }
 
+static void splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
+                          QString *repository_p, QString *branch_p, QString *path_p)
+{
+    QString svnprefix = pathName;
+    svnprefix.truncate(rule.rx.matchedLength());
+    if (svnprefix_p)
+        *svnprefix_p = svnprefix;
+
+    if (repository_p) {
+        *repository_p = svnprefix;
+        repository_p->replace(rule.rx, rule.repository);
+    }
+
+    if (branch_p) {
+        *branch_p = svnprefix;
+        branch_p->replace(rule.rx, rule.branch);
+    }
+
+    if (path_p)
+        *path_p = pathName.mid(svnprefix.length());
+}
 
 static int pathMode(svn_fs_root_t *fs_root, const char *pathname, apr_pool_t *pool)
 {
@@ -263,6 +284,8 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
             if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else if (dirent->kind == svn_node_file) {
+            printf("+");
+            fflush(stdout);
             if (dumpBlob(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         }
@@ -334,6 +357,8 @@ int SvnPrivate::exportRevision(int revnum)
         }
 
         QString current = QString::fromUtf8(key);
+        if (is_dir)
+            current += '/';
 
         // find the first rule that matches this pathname
         MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
@@ -343,18 +368,55 @@ int SvnPrivate::exportRevision(int revnum)
                 // ignore rule
                 qDebug() << "   " << qPrintable(current) << "rev" << revnum
                          << "-> ignored (rule line" << rule.lineNumber << ")";
-                break;
+                continue;
             } else {
-                QString svnprefix = current;
-                svnprefix.truncate(rule.rx.matchedLength());
+                QString svnprefix, repository, branch, path;
+                splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
 
-                QString repository = svnprefix;
-                QString branch = svnprefix;
-                QString path = current.mid(rule.rx.matchedLength());
+                if (path.isEmpty() && path_from != NULL) {
+                    QString previous = QString::fromUtf8(path_from) + '/';
+                    MatchRuleList::ConstIterator prevmatch =
+                        findMatchRule(matchRules, rev_from, previous);
+                    if (prevmatch != matchRules.constEnd()) {
+                        QString prevsvnprefix, prevrepository, prevbranch, prevpath;
+                        splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
+                                      &prevbranch, &prevpath);
 
-                // do the replacement
-                repository.replace(rule.rx, rule.repository);
-                branch.replace(rule.rx, rule.branch);
+                        if (!prevpath.isEmpty()) {
+                            qDebug() << qPrintable(current) << "is a partial branch of repository"
+                                     << qPrintable(prevrepository) << "branch"
+                                     << qPrintable(prevbranch) << "subdir"
+                                     << qPrintable(prevpath);
+                        } else if (prevrepository != repository) {
+                            qWarning() << qPrintable(current) << "rev" << revnum
+                                       << "is a cross-repository copy (from repository"
+                                       << qPrintable(prevrepository) << "branch"
+                                       << qPrintable(prevbranch) << "path"
+                                       << qPrintable(prevpath) << "rev" << rev_from << ")";
+                        } else if (prevbranch == branch) {
+                            // same branch and same repository
+                            qDebug() << qPrintable(current) << "rev" << revnum
+                                     << "is an SVN rename from"
+                                     << qPrintable(previous) << "rev" << rev_from;
+                            continue;
+                        } else {
+                            // same repository but not same branch
+                            // this means this is a plain branch
+                            qDebug() << qPrintable(repository) << ": branch"
+                                     << qPrintable(branch) << "is branching from"
+                                     << qPrintable(prevbranch);
+
+                            Repository *repo = repositories.value(repository, 0);
+                            if (!repo) {
+                                qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
+                                            << "references unknown repository" << repository;
+                                return EXIT_FAILURE;
+                            }
+
+                            repo->createBranch(branch, revnum, prevbranch, rev_from);
+                        }
+                    }
+                }
 
                 printf(".");
                 fflush(stdout);
@@ -385,21 +447,17 @@ int SvnPrivate::exportRevision(int revnum)
                 else
                     recursiveDumpDir(txn, fs_root, key, path, revpool);
 
-                break;
+                continue;
             }
-        } else if (is_dir && path_from != NULL) {
-            qDebug() << current << "is probably a new branch";
         }
 
-        if (match == matchRules.constEnd()) {
-            if (is_dir) {
-                qDebug() << current << "is a new directory; ignoring";
-            } else if (wasDir(fs, revnum - 1, key, pool)) {
-                qDebug() << current << "was a directory; ignoring";
-            } else {
-                qCritical() << current << "did not match any rules; cannot continue";
-                return EXIT_FAILURE;
-            }
+        if (is_dir) {
+            qDebug() << current << "is a new directory; ignoring";
+        } else if (wasDir(fs, revnum - 1, key, pool)) {
+            qDebug() << current << "was a directory; ignoring";
+        } else {
+            qCritical() << current << "did not match any rules; cannot continue";
+            return EXIT_FAILURE;
         }
     }
     revpool.clear();

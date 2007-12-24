@@ -63,6 +63,8 @@ public:
     ~Repository();
 
     void reloadBranches();
+    void createBranch(const QString &branch, int revnum,
+                      const QString &branchFrom, int revFrom);
     Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
 
 private:
