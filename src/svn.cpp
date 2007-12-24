@@ -372,7 +372,9 @@ int SvnPrivate::exportRevision(int revnum)
         }
 
         if (!foundMatch) {
-            if (wasDir(fs, revnum - 1, key, pool)) {
+            if (is_dir) {
+                qDebug() << current << "is a directory; ignoring";
+            } else if (wasDir(fs, revnum - 1, key, pool)) {
                 qDebug() << current << "was a directory; ignoring";
             } else {
                 qCritical() << current << "did not match any rules; cannot continue";
