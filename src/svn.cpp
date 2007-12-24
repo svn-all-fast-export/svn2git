@@ -494,7 +494,10 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
         }
     }
 
-    if (wasDir(fs, revnum - 1, key, revpool)) {
+    if (is_dir && path_from != NULL) {
+        qDebug() << current << "is a copy-with-history, auto-recursing";
+        return recurse(key, change, path_from, rev_from, revpool);
+    } else if (wasDir(fs, revnum - 1, key, revpool)) {
         qDebug() << current << "was a directory; ignoring";
     } else if (change->change_kind == svn_fs_path_change_delete) {
         qDebug() << current << "is being deleted but I don't know anything about it; ignoring";
@@ -579,12 +582,14 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         transactions.insert(repository, txn);
     }
 
-    if (change->change_kind == svn_fs_path_change_delete)
+    if (change->change_kind == svn_fs_path_change_delete) {
         txn->deleteFile(path);
-    else if (!current.endsWith('/'))
+    } else if (!current.endsWith('/')) {
         dumpBlob(txn, fs_root, key, path, pool);
-    else
+    } else {
+        txn->deleteFile(path);
         recursiveDumpDir(txn, fs_root, key, path, pool);
+    }
 
     return EXIT_SUCCESS;
 }
@@ -606,7 +611,9 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
 
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
         QByteArray entry = path + QByteArray("/") + dirent->name;
-        QByteArray entryFrom = path_from + QByteArray("/") + dirent->name;
+        QByteArray entryFrom;
+        if (path_from)
+            entryFrom = path_from + QByteArray("/") + dirent->name;
 
         QString current = QString::fromUtf8(entry);
         if (dirent->kind == svn_node_dir)
@@ -615,7 +622,8 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         // find the first rule that matches this pathname
         MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
         if (match != matchRules.constEnd()) {
-            if (exportInternal(entry, change, entryFrom, rev_from, current, *match) == EXIT_FAILURE)
+            if (exportInternal(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
+                               rev_from, current, *match) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else {
             qCritical() << current << "did not match any rules; cannot continue";

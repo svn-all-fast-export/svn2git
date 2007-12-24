@@ -211,8 +211,11 @@ void Repository::Transaction::commit()
     repository->fastImport.write(message);
 
     // write the file deletions
-    foreach (QString df, deletedFiles)
-        repository->fastImport.write("D " + df.toUtf8() + "\n");
+    if (deletedFiles.contains(""))
+        repository->fastImport.write("deleteall\n");
+    else
+        foreach (QString df, deletedFiles)
+            repository->fastImport.write("D " + df.toUtf8() + "\n");
 
     // write the file modifications
     QHash<QString, FileProperties>::ConstIterator it = modifiedFiles.constBegin();
