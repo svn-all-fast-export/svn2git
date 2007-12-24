@@ -160,6 +160,25 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     return EXIT_SUCCESS;
 }
 
+static MatchRuleList::ConstIterator
+findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &current)
+{
+    MatchRuleList::ConstIterator it = matchRules.constBegin(),
+                                end = matchRules.constEnd();
+    for ( ; it != end; ++it) {
+        if (it->minRevision > revnum)
+            continue;
+        if (it->maxRevision != -1 && it->maxRevision < revnum)
+            continue;
+        if (it->rx.indexIn(current) == 0)
+            return it;
+    }
+
+    // no match
+    return end;
+}
+
+
 static int pathMode(svn_fs_root_t *fs_root, const char *pathname, apr_pool_t *pool)
 {
     svn_string_t *propvalue;
@@ -276,6 +295,7 @@ time_t get_epoch(char *svn_date)
 int SvnPrivate::exportRevision(int revnum)
 {
     AprAutoPool pool(global_pool.data());
+    QHash<QString, Repository::Transaction *> transactions;
 
     // open this revision:
     qDebug() << "Exporting revision" << revnum;
@@ -283,7 +303,6 @@ int SvnPrivate::exportRevision(int revnum)
     SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum, pool));
 
     // find out what was changed in this revision:
-    QHash<QString, Repository::Transaction *> transactions;
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed(&changes, fs_root, pool));
     AprAutoPool revpool(pool.data());
@@ -295,52 +314,52 @@ int SvnPrivate::exportRevision(int revnum)
         apr_hash_this(i, &vkey, NULL, &value);
         const char *key = reinterpret_cast<const char *>(vkey);
 
+        // was this copied from somewhere?
+        svn_revnum_t rev_from;
+        const char *path_from;
+        SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
+
         // is this a directory?
         svn_boolean_t is_dir;
         SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
         if (is_dir) {
-            // was this directory copied from somewhere?
-            svn_revnum_t rev_from;
-            const char *path_from;
-            SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
-
-            if (path_from == NULL)
+            if (path_from == NULL) {
                 // no, it's a new directory being added
                 // Git doesn't handle directories, so we don't either
+                qDebug() << "   mkdir ignored:" << key;
                 continue;
+            }
 
-            qDebug() << "..." << key << "was copied from" << path_from;
+            qDebug() << "   " << key << "was copied from" << path_from;
         }
 
         QString current = QString::fromUtf8(key);
 
         // find the first rule that matches this pathname
-        bool foundMatch = false;
-        foreach (Rules::Match rule, matchRules) {
-            if (rule.minRevision > revnum)
-                continue;
-            if (rule.maxRevision != -1 && rule.maxRevision < revnum)
-                continue;
-            if (rule.rx.exactMatch(current)) {
-                foundMatch = true;
-                if (rule.repository.isEmpty()) {
-                    // ignore rule
-                    qDebug() << "..." << qPrintable(current) << "rev" << revnum
-                             << "-> ignored";
-                    break;
-                }
+        MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
+        if (match != matchRules.constEnd()) {
+            const Rules::Match &rule = *match;
+            if (rule.repository.isEmpty()) {
+                // ignore rule
+                qDebug() << "   " << qPrintable(current) << "rev" << revnum
+                         << "-> ignored (rule line" << rule.lineNumber << ")";
+                break;
+            } else {
+                QString svnprefix = current;
+                svnprefix.truncate(rule.rx.matchedLength());
 
-                QString repository = current;
-                QString branch = current;
-                QString path = current;
+                QString repository = svnprefix;
+                QString branch = svnprefix;
+                QString path = current.mid(rule.rx.matchedLength());
 
                 // do the replacement
                 repository.replace(rule.rx, rule.repository);
                 branch.replace(rule.rx, rule.branch);
-                path.replace(rule.rx, rule.path);
 
-                qDebug() << "..." << qPrintable(current) << "rev" << revnum << "->"
-                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
+                printf(".");
+                fflush(stdout);
+//                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
+//                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
                 Repository::Transaction *txn = transactions.value(repository, 0);
                 if (!txn) {
@@ -350,10 +369,6 @@ int SvnPrivate::exportRevision(int revnum)
                                     << "references unknown repository" << repository;
                         return EXIT_FAILURE;
                     }
-
-                    QString svnprefix = current;
-                    if (svnprefix.endsWith(path))
-                        svnprefix.chop(path.length());
 
                     txn = repo->newTransaction(branch, svnprefix, revnum);
                     if (!txn)
@@ -372,11 +387,13 @@ int SvnPrivate::exportRevision(int revnum)
 
                 break;
             }
+        } else if (is_dir && path_from != NULL) {
+            qDebug() << current << "is probably a new branch";
         }
 
-        if (!foundMatch) {
+        if (match == matchRules.constEnd()) {
             if (is_dir) {
-                qDebug() << current << "is a directory; ignoring";
+                qDebug() << current << "is a new directory; ignoring";
             } else if (wasDir(fs, revnum - 1, key, pool)) {
                 qDebug() << current << "was a directory; ignoring";
             } else {
@@ -417,5 +434,6 @@ int SvnPrivate::exportRevision(int revnum)
         delete txn;
     }
 
+    printf("\n");
     return EXIT_SUCCESS;
 }

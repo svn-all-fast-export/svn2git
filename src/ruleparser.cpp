@@ -53,7 +53,6 @@ void Rules::load()
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
-    QRegExp matchPathLine("path\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
 
     QTextStream s(&file);
@@ -92,9 +91,6 @@ void Rules::load()
                 continue;
             } else if (matchBranchLine.exactMatch(line)) {
                 match.branch = matchBranchLine.cap(1);
-                continue;
-            } else if (matchPathLine.exactMatch(line)) {
-                match.path = matchPathLine.cap(1);
                 continue;
             } else if (matchRevLine.exactMatch(line)) {
                 if (matchRevLine.cap(1) == "min")
