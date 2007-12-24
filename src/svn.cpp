@@ -278,7 +278,11 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
 
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
         QByteArray entryName = pathname + '/' + dirent->name;
-        QString entryFinalName = finalPathName + '/' + dirent->name;
+        QString entryFinalName;
+        if (finalPathName.isEmpty())
+            entryFinalName = dirent->name;
+        else
+            entryFinalName = finalPathName + '/' + dirent->name;
 
         if (dirent->kind == svn_node_dir) {
             if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
