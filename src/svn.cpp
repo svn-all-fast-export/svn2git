@@ -160,8 +160,11 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     return EXIT_SUCCESS;
 }
 
+enum RuleType { AnyRule = 0, NoIgnoreRule = 0x01, NoRecurseRule = 0x02 };
+
 static MatchRuleList::ConstIterator
-findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &current)
+findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &current,
+              int ruleMask = AnyRule)
 {
     MatchRuleList::ConstIterator it = matchRules.constBegin(),
                                 end = matchRules.constEnd();
@@ -169,6 +172,10 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
         if (it->minRevision > revnum)
             continue;
         if (it->maxRevision != -1 && it->maxRevision < revnum)
+            continue;
+        if (it->action == Rules::Match::Ignore && ruleMask & NoIgnoreRule)
+            continue;
+        if (it->action == Rules::Match::Recurse && ruleMask & NoRecurseRule)
             continue;
         if (it->rx.indexIn(current) == 0)
             return it;
@@ -514,7 +521,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     if (path.isEmpty() && path_from != NULL) {
         QString previous = QString::fromUtf8(path_from) + '/';
         MatchRuleList::ConstIterator prevmatch =
-            findMatchRule(matchRules, rev_from, previous);
+            findMatchRule(matchRules, rev_from, previous, NoRecurseRule | NoIgnoreRule);
         if (prevmatch != matchRules.constEnd()) {
             QString prevsvnprefix, prevrepository, prevbranch, prevpath;
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
