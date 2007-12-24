@@ -342,6 +342,7 @@ int SvnPrivate::exportRevision(int revnum)
         apr_hash_this(i, &vkey, NULL, &value);
         const char *key = reinterpret_cast<const char *>(vkey);
         QString current = QString::fromUtf8(key);
+        svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
 
         // was this copied from somewhere?
         svn_revnum_t rev_from;
@@ -442,7 +443,6 @@ int SvnPrivate::exportRevision(int revnum)
                     transactions.insert(repository, txn);
                 }
 
-                svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
                 if (change->change_kind == svn_fs_path_change_delete)
                     txn->deleteFile(path);
                 else if (!is_dir)
@@ -458,6 +458,8 @@ int SvnPrivate::exportRevision(int revnum)
             qDebug() << current << "is a new directory; ignoring";
         } else if (wasDir(fs, revnum - 1, key, pool)) {
             qDebug() << current << "was a directory; ignoring";
+        } else if (change->change_kind == svn_fs_path_change_delete) {
+            qDebug() << current << "is being deleted but I don't know anything about it; ignoring";
         } else {
             qCritical() << current << "did not match any rules; cannot continue";
             return EXIT_FAILURE;
