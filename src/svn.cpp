@@ -250,6 +250,20 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
     }
 }
 
+static bool wasDir(svn_fs_t *fs, int revnum, const char *pathname, apr_pool_t *pool)
+{
+    AprAutoPool subpool(pool);
+    svn_fs_root_t *fs_root;
+    if (svn_fs_revision_root(&fs_root, fs, revnum, subpool) != SVN_NO_ERROR)
+        return false;
+
+    svn_boolean_t is_dir;
+    if (svn_fs_is_dir(&is_dir, fs_root, pathname, subpool) != SVN_NO_ERROR)
+        return false;
+
+    return is_dir;
+}
+
 time_t get_epoch(char *svn_date)
 {
     struct tm tm;
@@ -309,6 +323,10 @@ int SvnPrivate::exportRevision(int revnum)
                 continue;
             if (rule.rx.exactMatch(current)) {
                 foundMatch = true;
+                if (rule.repository.isEmpty())
+                    // ignore rule
+                    break;
+
                 QString repository = current;
                 QString branch = current;
                 QString path = current;
@@ -354,8 +372,12 @@ int SvnPrivate::exportRevision(int revnum)
         }
 
         if (!foundMatch) {
-            qCritical() << current << "did not match any rules; cannot continue";
-            return EXIT_FAILURE;
+            if (wasDir(fs, revnum - 1, key, pool)) {
+                qDebug() << current << "was a directory; ignoring";
+            } else {
+                qCritical() << current << "did not match any rules; cannot continue";
+                return EXIT_FAILURE;
+            }
         }
     }
     revpool.clear();
