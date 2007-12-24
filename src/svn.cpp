@@ -456,7 +456,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
 
     // is this a directory?
     svn_boolean_t is_dir;
-    SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, pool));
+    SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
     if (is_dir) {
         if (path_from == NULL) {
             // no, it's a new directory being added
@@ -494,7 +494,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
         }
     }
 
-    if (wasDir(fs, revnum - 1, key, pool)) {
+    if (wasDir(fs, revnum - 1, key, revpool)) {
         qDebug() << current << "was a directory; ignoring";
     } else if (change->change_kind == svn_fs_path_change_delete) {
         qDebug() << current << "is being deleted but I don't know anything about it; ignoring";

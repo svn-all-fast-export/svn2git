@@ -131,7 +131,9 @@ void Repository::startFastImport()
         fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
         fastImport.start("git-fast-import", QStringList());
 #else
-        fastImport.setStandardOutputFile(name);
+        QString outputFile = name;
+        outputFile.replace('/', '_');
+        fastImport.setStandardOutputFile(outputFile);
         fastImport.start("/bin/cat", QStringList());
 #endif
     }
