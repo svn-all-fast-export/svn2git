@@ -60,7 +60,9 @@ void Rules::load()
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
     Repository repo;
     Match match;
+    int lineNumber = 0;
     while (!s.atEnd()) {
+        ++lineNumber;
         QString origLine = s.readLine();
         QString line = origLine;
 
@@ -121,7 +123,8 @@ void Rules::load()
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
         } else {
-            qFatal("Malformed line in rules file: %s", qPrintable(origLine));
+            qFatal("Malformed line in rules file: line %d: %s",
+                   lineNumber, qPrintable(origLine));
         }
     }
 }

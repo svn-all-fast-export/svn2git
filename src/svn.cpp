@@ -323,9 +323,12 @@ int SvnPrivate::exportRevision(int revnum)
                 continue;
             if (rule.rx.exactMatch(current)) {
                 foundMatch = true;
-                if (rule.repository.isEmpty())
+                if (rule.repository.isEmpty()) {
                     // ignore rule
+                    qDebug() << "..." << qPrintable(current) << "rev" << revnum
+                             << "-> ignored";
                     break;
+                }
 
                 QString repository = current;
                 QString branch = current;
