@@ -325,7 +325,8 @@ int SvnPrivate::exportRevision(int revnum)
     QHash<QString, Repository::Transaction *> transactions;
 
     // open this revision:
-    qDebug() << "Exporting revision" << revnum;
+    printf("Exporting revision %d ", revnum);
+    fflush(stdout);
     svn_fs_root_t *fs_root;
     SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum, pool));
 
