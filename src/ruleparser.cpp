@@ -104,8 +104,6 @@ void Rules::load()
                     match.action = Match::Export;
                 else if (action == "ignore")
                     match.action = Match::Ignore;
-                else if (action == "recurse")
-                    match.action = Match::Recurse;
                 else
                     qFatal("Invalid action \"%s\" on line %d", qPrintable(action), lineNumber);
                 continue;

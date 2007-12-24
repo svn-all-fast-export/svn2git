@@ -50,8 +50,7 @@ public:
 
         enum Action {
             Ignore,
-            Export,
-            Recurse
+            Export
         } action;
 
         Match() : minRevision(-1), maxRevision(-1), lineNumber(0), action(Ignore) { }

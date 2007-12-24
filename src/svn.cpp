@@ -160,7 +160,7 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     return EXIT_SUCCESS;
 }
 
-enum RuleType { AnyRule = 0, NoIgnoreRule = 0x01, NoRecurseRule = 0x02 };
+enum RuleType { AnyRule = 0, NoIgnoreRule = 0x01 };
 
 static MatchRuleList::ConstIterator
 findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &current,
@@ -174,8 +174,6 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
         if (it->maxRevision != -1 && it->maxRevision < revnum)
             continue;
         if (it->action == Rules::Match::Ignore && ruleMask & NoIgnoreRule)
-            continue;
-        if (it->action == Rules::Match::Recurse && ruleMask & NoRecurseRule)
             continue;
         if (it->rx.indexIn(current) == 0)
             return it;
@@ -473,25 +471,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
     if (match != matchRules.constEnd()) {
         const Rules::Match &rule = *match;
-        switch (rule.action) {
-        case Rules::Match::Ignore:
-            // ignore rule
-            qDebug() << "   " << qPrintable(current) << "rev" << revnum
-                     << "-> ignored (rule" << rule << ")";
-            return EXIT_SUCCESS;
-
-        case Rules::Match::Recurse:
-            // recurse rule
-            if (is_dir)
-                return recurse(key, change, path_from, rev_from, revpool);
-            if (change->change_kind != svn_fs_path_change_delete)
-                qWarning() << "   recurse rule" << rule
-                           << "applied to non-directory:" << qPrintable(current);
-            return EXIT_SUCCESS;
-
-        case Rules::Match::Export:
-            return exportInternal(key, change, path_from, rev_from, current, rule);
-        }
+        return exportInternal(key, change, path_from, rev_from, current, rule);
     }
 
     if (is_dir && path_from != NULL) {
@@ -513,6 +493,13 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                                 const char *path_from, svn_revnum_t rev_from,
                                 const QString &current, const Rules::Match &rule)
 {
+    if (rule.action == Rules::Match::Ignore) {
+        // ignore rule
+        qDebug() << "   " << qPrintable(current) << "rev" << revnum
+                 << "-> ignored (rule" << rule << ")";
+        return EXIT_SUCCESS;
+    }
+
     QString svnprefix, repository, branch, path;
     splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
 
@@ -524,7 +511,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     if (path.isEmpty() && path_from != NULL) {
         QString previous = QString::fromUtf8(path_from) + '/';
         MatchRuleList::ConstIterator prevmatch =
-            findMatchRule(matchRules, rev_from, previous, NoRecurseRule | NoIgnoreRule);
+            findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
         if (prevmatch != matchRules.constEnd()) {
             QString prevsvnprefix, prevrepository, prevbranch, prevpath;
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
