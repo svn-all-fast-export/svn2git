@@ -144,7 +144,7 @@ void Rules::load()
 QDebug operator<<(QDebug s, const Rules::Match &rule)
 {
     s.nospace() << rule.rx.pattern() << " (line " << rule.lineNumber << ")";
-    return s.maybeSpace();
+    return s.space();
 }
 
 #endif
