@@ -36,7 +36,6 @@ Repository::Repository(const Rules::Repository &rule)
     branches["master"].isCreated = true;
 
     fastImport.setWorkingDirectory(name);
-    fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
 }
 
 Repository::~Repository()
@@ -102,8 +101,10 @@ void Repository::startFastImport()
     if (fastImport.state() == QProcess::NotRunning) {
         // start the process
 #ifndef DRY_RUN
+        fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
         fastImport.start("git-fast-import", QStringList());
 #else
+        fastImport.setStandardOutputFile(name);
         fastImport.start("/bin/cat", QStringList());
 #endif
     }
