@@ -39,7 +39,7 @@ Repository::Repository(const Rules::Repository &rule)
 
 Repository::~Repository()
 {
-    if (fastImport.state() == QProcess::Running) {
+    if (fastImport.state() != QProcess::NotRunning) {
         fastImport.closeWriteChannel();
         fastImport.waitForFinished();
     }
