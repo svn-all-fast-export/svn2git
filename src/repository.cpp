@@ -133,7 +133,7 @@ void Repository::startFastImport()
 #else
         QString outputFile = name;
         outputFile.replace('/', '_');
-        fastImport.setStandardOutputFile(outputFile);
+        fastImport.setStandardOutputFile(outputFile, QIODevice::Append);
         fastImport.start("/bin/cat", QStringList());
 #endif
     }
