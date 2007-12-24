@@ -221,6 +221,35 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
     return EXIT_SUCCESS;
 }
 
+static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root,
+                            const QByteArray &pathname, const QString &finalPathName,
+                            apr_pool_t *pool)
+{
+    // get the dir listing
+    apr_hash_t *entries;
+    SVN_ERR(svn_fs_dir_entries(&entries, fs_root, pathname, pool));
+    AprAutoPool dirpool(pool);
+
+    for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
+        dirpool.clear();
+        const void *vkey;
+        void *value;
+        apr_hash_this(i, &vkey, NULL, &value);
+
+        svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+        QByteArray entryName = pathname + '/' + dirent->name;
+        QString entryFinalName = finalPathName + '/' + dirent->name;
+
+        if (dirent->kind == svn_node_dir) {
+            if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
+                return EXIT_FAILURE;
+        } else if (dirent->kind == svn_node_file) {
+            if (dumpBlob(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
+                return EXIT_FAILURE;
+        }
+    }
+}
+
 time_t get_epoch(char *svn_date)
 {
     struct tm tm;
@@ -246,6 +275,7 @@ int SvnPrivate::exportRevision(int revnum)
     AprAutoPool revpool(pool.data());
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
         revpool.clear();
+
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
@@ -254,8 +284,19 @@ int SvnPrivate::exportRevision(int revnum)
         // is this a directory?
         svn_boolean_t is_dir;
         SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
-        if (is_dir)
-            continue;           // Git doesn't handle directories, so we don't either
+        if (is_dir) {
+            // was this directory copied from somewhere?
+            svn_revnum_t rev_from;
+            const char *path_from;
+            SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
+
+            if (path_from == NULL)
+                // no, it's a new directory being added
+                // Git doesn't handle directories, so we don't either
+                continue;
+
+            qDebug() << "..." << key << "was copied from" << path_from;
+        }
 
         QString current = QString::fromUtf8(key);
 
@@ -273,8 +314,8 @@ int SvnPrivate::exportRevision(int revnum)
                 branch.replace(rule.rx, rule.branch);
                 path.replace(rule.rx, rule.path);
 
-                qDebug() << "..." << current << "rev" << revnum << "->"
-                         << repository << branch << path;
+                qDebug() << "..." << qPrintable(current) << "rev" << revnum << "->"
+                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
                 Repository::Transaction *txn = transactions.value(repository, 0);
                 if (!txn) {
@@ -299,8 +340,10 @@ int SvnPrivate::exportRevision(int revnum)
                 svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
                 if (change->change_kind == svn_fs_path_change_delete)
                     txn->deleteFile(path);
-                else
+                else if (!is_dir)
                     dumpBlob(txn, fs_root, key, path, revpool);
+                else
+                    recursiveDumpDir(txn, fs_root, key, path, revpool);
 
                 break;
             }
