@@ -477,7 +477,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
         case Rules::Match::Ignore:
             // ignore rule
             qDebug() << "   " << qPrintable(current) << "rev" << revnum
-                     << "-> ignored (rule line" << rule.lineNumber << ")";
+                     << "-> ignored (rule" << rule << ")";
             return EXIT_SUCCESS;
 
         case Rules::Match::Recurse:
@@ -485,7 +485,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
             if (is_dir)
                 return recurse(key, change, path_from, rev_from, revpool);
             if (change->change_kind != svn_fs_path_change_delete)
-                qWarning() << "   recurse rule " << rule.rx.pattern() << "line" << rule.lineNumber
+                qWarning() << "   recurse rule" << rule
                            << "applied to non-directory:" << qPrintable(current);
             return EXIT_SUCCESS;
 
@@ -556,7 +556,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
                 Repository *repo = repositories.value(repository, 0);
                 if (!repo) {
-                    qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
+                    qCritical() << "Rule" << rule
                                 << "references unknown repository" << repository;
                     return EXIT_FAILURE;
                 }
@@ -570,7 +570,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     if (!txn) {
         Repository *repo = repositories.value(repository, 0);
         if (!repo) {
-            qCritical() << "Rule" << rule.rx.pattern() << "line" << rule.lineNumber
+            qCritical() << "Rule" << rule
                         << "references unknown repository" << repository;
             return EXIT_FAILURE;
         }

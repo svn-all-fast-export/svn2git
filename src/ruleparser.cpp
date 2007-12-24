@@ -139,3 +139,12 @@ void Rules::load()
         }
     }
 }
+
+#ifndef QT_NO_DEBUG_STREAM
+QDebug operator<<(QDebug s, const Rules::Match &rule)
+{
+    s.nospace() << rule.rx.pattern() << " (line " << rule.lineNumber << ")";
+    return s.maybeSpace();
+}
+
+#endif
