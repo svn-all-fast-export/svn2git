@@ -25,6 +25,8 @@ Repository::Repository(const Rules::Repository &rule)
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
         branch.branchFrom = branchRule.branchFrom;
+        if (!branch.branchFrom.startsWith("refs/heads/"))
+            branch.branchFrom.prepend("refs/heads/");
         branch.isCreated = false;
 
         branches.insert(branchRule.name, branch);
