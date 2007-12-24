@@ -121,8 +121,7 @@ void Rules::load()
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
         } else {
-            qWarning() << "Malformed line in configure file:" << origLine;
-            state = ReadingNone;
+            qFatal("Malformed line in rules file: %s", qPrintable(origLine));
         }
     }
 }
