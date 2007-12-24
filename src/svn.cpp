@@ -398,7 +398,7 @@ int SvnPrivate::exportRevision(int revnum)
     svn_string_t *svnlog = (svn_string_t*)apr_hash_get(revprops, "svn:log", APR_HASH_KEY_STRING);
 
     QByteArray log = (char *)svnlog->data;
-    QByteArray authorident = identities.value((char *)svnauthor->data);
+    QByteArray authorident = svnauthor ? identities.value((char *)svnauthor->data) : QByteArray();
     time_t epoch = get_epoch((char*)svndate->data);
     if (authorident.isEmpty()) {
         if (!svnauthor || svn_string_isempty(svnauthor))
