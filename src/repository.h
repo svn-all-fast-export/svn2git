@@ -70,7 +70,7 @@ public:
 private:
     struct Branch
     {
-        bool isCreated;
+        uint created;
     };
 
     QHash<QString, Branch> branches;

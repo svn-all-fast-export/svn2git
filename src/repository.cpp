@@ -24,13 +24,13 @@ Repository::Repository(const Rules::Repository &rule)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
-        branch.isCreated = false;
+        branch.created = 0;     // not created
 
         branches.insert(branchRule.name, branch);
     }
 
     // create the default branch
-    branches["master"].isCreated = true;
+    branches["master"].created = 1;
 
     fastImport.setWorkingDirectory(name);
 }
@@ -68,7 +68,7 @@ void Repository::reloadBranches()
             startFastImport();
             fastImport.write("reset " + branchRef.toUtf8() +
                              "\nfrom " + branchRef.toUtf8() + "^0\n\n");
-            it->isCreated = true;
+            it->created = 1;
         }
     }
 }
@@ -87,7 +87,7 @@ void Repository::createBranch(const QString &branch, int revnum,
         branchRef.prepend("refs/heads/");
 
     Branch &br = branches[branch];
-    if (br.isCreated) {
+    if (br.created && br.created != revnum) {
         QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
         qWarning() << branch << "already exists; backing up to" << backupBranch;
 
@@ -95,7 +95,7 @@ void Repository::createBranch(const QString &branch, int revnum,
     }
 
     // now create the branch
-    br.isCreated = true;
+    br.created = revnum;
     QByteArray branchFromRef = branchFrom.toUtf8();
     if (!branchFromRef.startsWith("refs/"))
         branchFromRef.prepend("refs/heads/");
@@ -201,9 +201,7 @@ void Repository::Transaction::commit()
         s << "committer " << author << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
-        if (!br.isCreated) {
-            br.isCreated = true;
-        }
+        Q_ASSERT(br.created);
 
         s << "data " << message.length() << endl;
     }
