@@ -201,7 +201,11 @@ void Repository::Transaction::commit()
         s << "committer " << author << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
-        Q_ASSERT(br.created);
+        if (!br.created) {
+            qWarning() << "Branch" << branch << "doesn't exist at revision"
+                       << revnum << "-- did you resume from the wrong revision?";
+            br.created = revnum;
+        }
 
         s << "data " << message.length() << endl;
     }
