@@ -551,6 +551,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                 }
 
                 repo->createBranch(branch, revnum, prevbranch, rev_from);
+                return EXIT_SUCCESS;
             }
         }
     }
