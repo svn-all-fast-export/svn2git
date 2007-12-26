@@ -627,4 +627,6 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
             return EXIT_FAILURE;
         }
     }
+
+    return EXIT_SUCCESS;
 }
