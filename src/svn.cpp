@@ -354,12 +354,13 @@ public:
     int prepareTransactions();
     int commit();
 
-    int exportEntry(const char *path, const svn_fs_path_change_t *change);
+    int exportEntry(const char *path, const svn_fs_path_change_t *change, apr_hash_t *changes);
     int exportInternal(const char *path, const svn_fs_path_change_t *change,
                        const char *path_from, svn_revnum_t rev_from,
                        const QString &current, const Rules::Match &rule);
     int recurse(const char *path, const svn_fs_path_change_t *change,
-                const char *path_from, svn_revnum_t rev_from, apr_pool_t *pool);
+                const char *path_from, svn_revnum_t rev_from,
+                apr_hash_t *changes, apr_pool_t *pool);
 };
 
 int SvnPrivate::exportRevision(int revnum)
@@ -403,7 +404,7 @@ int SvnRevision::prepareTransactions()
         const char *key = reinterpret_cast<const char *>(vkey);
         svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
 
-        if (exportEntry(key, change) == EXIT_FAILURE)
+        if (exportEntry(key, change, changes) == EXIT_FAILURE)
             return EXIT_FAILURE;
     }
 
@@ -442,7 +443,8 @@ int SvnRevision::commit()
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change)
+int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change,
+                             apr_hash_t *changes)
 {
     AprAutoPool revpool(pool.data());
     QString current = QString::fromUtf8(key);
@@ -476,7 +478,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
 
     if (is_dir && path_from != NULL) {
         qDebug() << current << "is a copy-with-history, auto-recursing";
-        return recurse(key, change, path_from, rev_from, revpool);
+        return recurse(key, change, path_from, rev_from, changes, revpool);
     } else if (wasDir(fs, revnum - 1, key, revpool)) {
         qDebug() << current << "was a directory; ignoring";
     } else if (change->change_kind == svn_fs_path_change_delete) {
@@ -583,7 +585,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
 int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
                          const char *path_from, svn_revnum_t rev_from,
-                         apr_pool_t *pool)
+                         apr_hash_t *changes, apr_pool_t *pool)
 {
     // get the dir listing
     apr_hash_t *entries;
@@ -601,6 +603,13 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         QByteArray entryFrom;
         if (path_from)
             entryFrom = path_from + QByteArray("/") + dirent->name;
+
+        // check if this entry is in the changelist for this revision already
+        if (apr_hash_get(changes, entry.constData(), APR_HASH_KEY_STRING)) {
+            qDebug() << entry << "rev" << revnum
+                     << "is in the change-list, deferring to that one";
+            continue;
+        }
 
         QString current = QString::fromUtf8(entry);
         if (dirent->kind == svn_node_dir)
