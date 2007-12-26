@@ -623,7 +623,8 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
                                rev_from, current, *match) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else {
-            qCritical() << current << "did not match any rules; cannot continue";
+            qCritical() << current << "rev" << revnum
+                        << "did not match any rules; cannot continue";
             return EXIT_FAILURE;
         }
     }
