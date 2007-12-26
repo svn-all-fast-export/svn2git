@@ -284,13 +284,10 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
 
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
         QByteArray entryName = pathname + '/' + dirent->name;
-        QString entryFinalName;
-        if (finalPathName.isEmpty())
-            entryFinalName = dirent->name;
-        else
-            entryFinalName = finalPathName + '/' + dirent->name;
+        QString entryFinalName = finalPathName + dirent->name;
 
         if (dirent->kind == svn_node_dir) {
+            entryFinalName += '/';
             if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else if (dirent->kind == svn_node_file) {
@@ -577,7 +574,9 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     } else if (!current.endsWith('/')) {
         dumpBlob(txn, fs_root, key, path, pool);
     } else {
-        txn->deleteFile(path);
+        QString pathNoSlash = path;
+        pathNoSlash.chop(1);
+        txn->deleteFile(pathNoSlash);
         recursiveDumpDir(txn, fs_root, key, path, pool);
     }
 
