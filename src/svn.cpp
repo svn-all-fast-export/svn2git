@@ -352,6 +352,10 @@ public:
     int commit();
 
     int exportEntry(const char *path, const svn_fs_path_change_t *change, apr_hash_t *changes);
+    int exportDispatch(const char *path, const svn_fs_path_change_t *change,
+                       const char *path_from, svn_revnum_t rev_from,
+                       apr_hash_t *changes, const QString &current, const Rules::Match &rule,
+                       apr_pool_t *pool);
     int exportInternal(const char *path, const svn_fs_path_change_t *change,
                        const char *path_from, svn_revnum_t rev_from,
                        const QString &current, const Rules::Match &rule);
@@ -470,7 +474,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
     if (match != matchRules.constEnd()) {
         const Rules::Match &rule = *match;
-        return exportInternal(key, change, path_from, rev_from, current, rule);
+        return exportDispatch(key, change, path_from, rev_from, changes, current, rule, revpool);
     }
 
     if (is_dir && path_from != NULL) {
@@ -488,17 +492,30 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *change,
+int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *change,
                                 const char *path_from, svn_revnum_t rev_from,
-                                const QString &current, const Rules::Match &rule)
+                                apr_hash_t *changes, const QString &current,
+                                const Rules::Match &rule, apr_pool_t *pool)
 {
-    if (rule.action == Rules::Match::Ignore) {
+    switch (rule.action) {
+    case Rules::Match::Ignore:
         // ignore rule
         qDebug() << "   " << qPrintable(current) << "rev" << revnum
                  << "-> ignored (rule" << rule << ")";
         return EXIT_SUCCESS;
-    }
 
+    case Rules::Match::Recurse:
+        return recurse(key, change, path_from, rev_from, changes, pool);
+
+    case Rules::Match::Export:
+        return exportInternal(key, change, path_from, rev_from, current, rule);
+    }
+}
+
+int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *change,
+                                const char *path_from, svn_revnum_t rev_from,
+                                const QString &current, const Rules::Match &rule)
+{
     QString svnprefix, repository, branch, path;
     splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
 
@@ -618,8 +635,8 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         // find the first rule that matches this pathname
         MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
         if (match != matchRules.constEnd()) {
-            if (exportInternal(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
-                               rev_from, current, *match) == EXIT_FAILURE)
+            if (exportDispatch(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
+                               rev_from, changes, current, *match, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else {
             qCritical() << current << "rev" << revnum
