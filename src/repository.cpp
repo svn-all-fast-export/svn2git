@@ -120,6 +120,9 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->lastmark = revnum;
 
     startFastImport();
+    if (++commitCount % 10000)
+        // write everything to disk every 10000 commits
+        fastImport.write("checkpoint\n");
     return txn;
 }
 

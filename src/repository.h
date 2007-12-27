@@ -76,6 +76,7 @@ private:
     QHash<QString, Branch> branches;
     QString name;
     QProcess fastImport;
+    int commitCount;
 
     void startFastImport();
 
