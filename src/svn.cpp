@@ -160,7 +160,7 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     return EXIT_SUCCESS;
 }
 
-enum RuleType { AnyRule = 0, NoIgnoreRule = 0x01 };
+enum RuleType { AnyRule = 0, NoIgnoreRule = 0x01, NoRecurseRule = 0x02 };
 
 static MatchRuleList::ConstIterator
 findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &current,
@@ -174,6 +174,8 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
         if (it->maxRevision != -1 && it->maxRevision < revnum)
             continue;
         if (it->action == Rules::Match::Ignore && ruleMask & NoIgnoreRule)
+            continue;
+        if (it->action == Rules::Match::Recurse && ruleMask & NoRecurseRule)
             continue;
         if (it->rx.indexIn(current) == 0)
             return it;
