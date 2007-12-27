@@ -211,6 +211,7 @@ void Repository::Transaction::commit()
     }
 
     repository->fastImport.write(message);
+    repository->fastImport.putChar('\n');
 
     // write the file deletions
     if (deletedFiles.contains(""))
