@@ -553,7 +553,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         }
     }
 
-    Repository::Transaction *txn = transactions.value(repository, 0);
+    Repository::Transaction *txn = transactions.value(repository + branch, 0);
     if (!txn) {
         Repository *repo = repositories.value(repository, 0);
         if (!repo) {
@@ -566,7 +566,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         if (!txn)
             return EXIT_FAILURE;
 
-        transactions.insert(repository, txn);
+        transactions.insert(repository + branch, txn);
     }
 
     if (change->change_kind == svn_fs_path_change_delete) {
