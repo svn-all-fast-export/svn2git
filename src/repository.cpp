@@ -20,7 +20,7 @@
 #include <QDebug>
 
 Repository::Repository(const Rules::Repository &rule)
-    : name(rule.name)
+    : name(rule.name), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
@@ -129,14 +129,20 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
 void Repository::startFastImport()
 {
     if (fastImport.state() == QProcess::NotRunning) {
+        if (processHasStarted)
+            qFatal("git-fast-import has been started once and crashed?");
+        processHasStarted = true;
+
         // start the process
+        QString outputFile = name;
+        outputFile.replace('/', '_');
+        outputFile.prepend("log-");
+        fastImport.setStandardOutputFile(outputFile, QIODevice::Append);
+
 #ifndef DRY_RUN
         fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
         fastImport.start("git-fast-import", QStringList());
 #else
-        QString outputFile = name;
-        outputFile.replace('/', '_');
-        fastImport.setStandardOutputFile(outputFile, QIODevice::Append);
         fastImport.start("/bin/cat", QStringList());
 #endif
     }
