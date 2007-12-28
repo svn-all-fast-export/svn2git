@@ -138,9 +138,9 @@ void Repository::startFastImport()
         outputFile.replace('/', '_');
         outputFile.prepend("log-");
         fastImport.setStandardOutputFile(outputFile, QIODevice::Append);
+        fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
 #ifndef DRY_RUN
-        fastImport.setProcessChannelMode(QProcess::ForwardedChannels);
         fastImport.start("git-fast-import", QStringList());
 #else
         fastImport.start("/bin/cat", QStringList());
@@ -206,7 +206,7 @@ void Repository::Transaction::commit()
         QTextStream s(&repository->fastImport);
         s << "commit " << branchRef << endl;
         s << "mark :" << revnum << endl;
-        s << "committer " << author << ' ' << datetime << " -0000" << endl;
+        s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
         if (!br.created) {
