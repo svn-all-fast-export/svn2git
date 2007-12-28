@@ -228,9 +228,8 @@ svn_error_t *QIODevice_write(void *baton, const char *data, apr_size_t *len)
     QIODevice *device = reinterpret_cast<QIODevice *>(baton);
     device->write(data, *len);
 
-    while (device->bytesToWrite() > 16*1024) {
-        int timeout = device->bytesToWrite() >= 128*1024 ? -1 : 0;
-        if (!device->waitForBytesWritten(timeout)) {
+    while (device->bytesToWrite() > 32*1024) {
+        if (!device->waitForBytesWritten(-1)) {
             qFatal("Failed to write to process: %s", qPrintable(device->errorString()));
             return svn_error_createf(APR_EOF, SVN_NO_ERROR, "Failed to write to process: %s",
                                      qPrintable(device->errorString()));
