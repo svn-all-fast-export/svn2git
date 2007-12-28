@@ -228,8 +228,14 @@ svn_error_t *QIODevice_write(void *baton, const char *data, apr_size_t *len)
     QIODevice *device = reinterpret_cast<QIODevice *>(baton);
     device->write(data, *len);
 
-    if (device->bytesToWrite() > 16384)
-        device->waitForBytesWritten(0);
+    while (device->bytesToWrite() > 16*1024) {
+        int timeout = device->bytesToWrite() >= 128*1024 ? -1 : 0;
+        if (!device->waitForBytesWritten(timeout)) {
+            qFatal("Failed to write to process: %s", qPrintable(device->errorString()));
+            return svn_error_createf(APR_EOF, SVN_NO_ERROR, "Failed to write to process: %s",
+                                     qPrintable(device->errorString()));
+        }
+    }
     return SVN_NO_ERROR;
 }
 
@@ -512,6 +518,9 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
     case Rules::Match::Export:
         return exportInternal(key, change, path_from, rev_from, current, rule);
     }
+
+    // never reached
+    return EXIT_FAILURE;
 }
 
 int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *change,

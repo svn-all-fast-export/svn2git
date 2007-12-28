@@ -77,6 +77,7 @@ private:
     QString name;
     QProcess fastImport;
     int commitCount;
+    bool processHasStarted;
 
     void startFastImport();
 

@@ -184,7 +184,6 @@ QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint6
     repository->fastImport.write("\ndata ");
     repository->fastImport.write(QByteArray::number(length));
     repository->fastImport.write("\n", 1);
-    repository->fastImport.waitForBytesWritten(0);
 #endif
 
     modifiedFiles.insert(path, fp);
@@ -243,7 +242,7 @@ void Repository::Transaction::commit()
 
     repository->fastImport.write("\n");
 
-    while (repository->fastImport.bytesToWrite() && repository->fastImport.waitForBytesWritten()) {
-        // nothing
-    }
+    while (repository->fastImport.bytesToWrite())
+        if (!repository->fastImport.waitForBytesWritten())
+            qFatal("Failed to write to process: %s", qPrintable(repository->fastImport.errorString()));
 }
