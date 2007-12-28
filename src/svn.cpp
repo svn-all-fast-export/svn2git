@@ -122,6 +122,11 @@ void Svn::setRepositories(const RepositoryHash &repositories)
     d->repositories = repositories;
 }
 
+void Svn::setIdentityMap(const IdentityHash &identityMap)
+{
+    d->identities = identityMap;
+}
+
 int Svn::youngestRevision()
 {
     return d->youngestRevision();

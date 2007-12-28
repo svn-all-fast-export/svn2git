@@ -16,6 +16,7 @@
  */
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QStringList>
 
 #include <stdio.h>
@@ -24,6 +25,30 @@
 #include "ruleparser.h"
 #include "repository.h"
 #include "svn.h"
+
+QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
+{
+    QHash<QByteArray, QByteArray> result;
+    if (fileName.isEmpty())
+        return result;
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly))
+        return result;
+
+    while (!file.atEnd()) {
+        QByteArray line = file.readLine().trimmed();
+        int space = line.indexOf(' ');
+        if (space == -1)
+            continue;           // invalid line
+
+        QByteArray realname = line.mid(space).trimmed();
+        line.truncate(space);
+        result.insert(line, realname);
+    };
+
+    return result;
+}
 
 int main(int argc, char **argv)
 {
@@ -54,6 +79,7 @@ int main(int argc, char **argv)
     Svn svn(options.pathToRepository);
     svn.setMatchRules(rules.matchRules());
     svn.setRepositories(repositories);
+    svn.setIdentityMap(loadIdentityMapFile(options.options.value("identity-map")));
 
     if (max_rev < 1)
         max_rev = svn.youngestRevision();
