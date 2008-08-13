@@ -217,7 +217,7 @@ void Repository::Transaction::commit()
 
         Branch &br = repository->branches[branch];
         if (!br.created) {
-            qWarning() << "Branch" << branch << "doesn't exist at revision"
+            qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
                        << revnum << "-- did you resume from the wrong revision?";
             br.created = revnum;
         }
