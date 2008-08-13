@@ -77,8 +77,8 @@ void Repository::createBranch(const QString &branch, int revnum,
                               const QString &branchFrom, int)
 {
     if (!branches.contains(branch)) {
-        qCritical() << branch << "is not a known branch in repository" << name;
-        exit(1);
+        qWarning() << branch << "is not a known branch in repository" << name << endl
+                   << "Going to create it automatically";
     }
 
     startFastImport();
@@ -99,6 +99,13 @@ void Repository::createBranch(const QString &branch, int revnum,
     QByteArray branchFromRef = branchFrom.toUtf8();
     if (!branchFromRef.startsWith("refs/"))
         branchFromRef.prepend("refs/heads/");
+
+    if (!branches.contains(branchFrom) || !branches.value(branchFrom).created) {
+        qCritical() << branch << "in repository" << name
+                    << "is branching from branch" << branchFrom
+                    << "but the latter doesn't exist. Can't continue.";
+        exit(1);
+    }
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n");
 }
