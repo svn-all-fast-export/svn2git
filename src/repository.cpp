@@ -114,8 +114,8 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
                                                     int revnum)
 {
     if (!branches.contains(branch)) {
-        qCritical() << branch << "is not a known branch in repository" << name;
-        return 0;
+        qWarning() << branch << "is not a known branch in repository" << name << endl
+                   << "Going to create it automatically";
     }
 
     Transaction *txn = new Transaction;
