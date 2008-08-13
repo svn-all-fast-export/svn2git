@@ -45,30 +45,20 @@ Repository::~Repository()
 
 void Repository::reloadBranches()
 {
-    QHash<QString, Branch>::Iterator it = branches.begin(),
-                                    end = branches.end();
-    for ( ; it != end; ++it) {
-        QString branchRef = it.key();
-        if (!branchRef.startsWith("refs/"))
-            branchRef.prepend("refs/heads/");
+    QProcess revParse;
+    revParse.setWorkingDirectory(name);
+    revParse.start("git", QStringList() << "rev-parse" << "--symbolic" << "--branches");
+    revParse.waitForFinished();
 
-        bool branchExists;
-        // does this branch already exist?
-        QProcess revParse;
-        revParse.setWorkingDirectory(name);
-        revParse.start("git-rev-parse", QStringList() << "--verify" << branchRef);
-        revParse.waitForFinished();
+    if (revParse.exitCode() == 0 && revParse.bytesAvailable()) {
+        startFastImport();
 
-        if (revParse.exitCode() == 0)
-            branchExists = true;
-        else
-            branchExists = false;
+        while (revParse.canReadLine()) {
+            QByteArray branchName = revParse.readLine();
 
-        if (branchExists) {
-            startFastImport();
-            fastImport.write("reset " + branchRef.toUtf8() +
-                             "\nfrom " + branchRef.toUtf8() + "^0\n\n");
-            it->created = 1;
+            branches[branchName].created = 1;
+            fastImport.write("reset refs/heads/" + branchName +
+                             "\nfrom refs/heads/" + branchName + "^0\n\n");
         }
     }
 }
