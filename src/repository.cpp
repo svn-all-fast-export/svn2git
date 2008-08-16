@@ -54,7 +54,7 @@ void Repository::reloadBranches()
         startFastImport();
 
         while (revParse.canReadLine()) {
-            QByteArray branchName = revParse.readLine();
+            QByteArray branchName = revParse.readLine().trimmed();
 
             branches[branchName].created = 1;
             fastImport.write("reset refs/heads/" + branchName +
