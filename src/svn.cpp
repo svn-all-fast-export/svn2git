@@ -631,6 +631,9 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         apr_hash_this(i, &vkey, NULL, &value);
 
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+        if (dirent->kind != svn_node_dir)
+            continue;           // not a directory, so can't recurse; skip
+
         QByteArray entry = path + QByteArray("/") + dirent->name;
         QByteArray entryFrom;
         if (path_from)
