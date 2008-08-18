@@ -54,17 +54,17 @@ void Repository::reloadBranches()
     QProcess revParse;
     revParse.setWorkingDirectory(name);
     revParse.start("git", QStringList() << "rev-parse" << "--symbolic" << "--branches");
-    revParse.waitForFinished();
+    revParse.waitForFinished(-1);
 
     if (revParse.exitCode() == 0 && revParse.bytesAvailable()) {
-        startFastImport();
-
         while (revParse.canReadLine()) {
             QByteArray branchName = revParse.readLine().trimmed();
 
+            //qDebug() << "Repo" << name << "reloaded branch" << branchName;
             branches[branchName].created = 1;
             fastImport.write("reset refs/heads/" + branchName +
-                             "\nfrom refs/heads/" + branchName + "^0\n\n");
+                             "\nfrom refs/heads/" + branchName + "^0\n\n"
+                             "progress Branch refs/heads/" + branchName + " reloaded\n");
         }
     }
 }
@@ -72,12 +72,12 @@ void Repository::reloadBranches()
 void Repository::createBranch(const QString &branch, int revnum,
                               const QString &branchFrom, int)
 {
+    startFastImport();
     if (!branches.contains(branch)) {
         qWarning() << branch << "is not a known branch in repository" << name << endl
                    << "Going to create it automatically";
     }
 
-    startFastImport();
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
         branchRef.prepend("refs/heads/");
@@ -103,12 +103,14 @@ void Repository::createBranch(const QString &branch, int revnum,
         exit(1);
     }
 
-    fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n");
+    fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
+        "progress Branch " + branchRef + " created from " + branchFromRef + "\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
                                                     int revnum)
 {
+    startFastImport();
     if (!branches.contains(branch)) {
         qWarning() << branch << "is not a known branch in repository" << name << endl
                    << "Going to create it automatically";
@@ -122,7 +124,6 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->revnum = revnum;
     txn->lastmark = revnum;
 
-    startFastImport();
     if ((++commitCount % 10000) == 0)
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
@@ -144,10 +145,12 @@ void Repository::startFastImport()
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
 #ifndef DRY_RUN
-        fastImport.start("git-fast-import", QStringList());
+        fastImport.start("git", QStringList() << "fast-import");
 #else
         fastImport.start("/bin/cat", QStringList());
 #endif
+
+        reloadBranches();
     }
 }
 
@@ -243,7 +246,13 @@ void Repository::Transaction::commit()
         repository->fastImport.write("\n", 1);
     }
 
-    repository->fastImport.write("\n");
+    repository->fastImport.write("\nprogress Commit #" +
+                                 QByteArray::number(repository->commitCount) +
+                                 " branch " + branch +
+                                 " = SVN r" + QByteArray::number(revnum) + "\n\n");
+    printf(" %d modifications to \"%s\"",
+           deletedFiles.count() + modifiedFiles.count(),
+           qPrintable(repository->name));
 
     while (repository->fastImport.bytesToWrite())
         if (!repository->fastImport.waitForBytesWritten(-1))

@@ -479,7 +479,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
         }
 
         current += '/';
-        qDebug() << "   " << key << "was copied from" << path_from;
+        qDebug() << "   " << key << "was copied from" << path_from << "rev" << rev_from;
     }
 
     // find the first rule that matches this pathname
@@ -512,8 +512,8 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
     switch (rule.action) {
     case Rules::Match::Ignore:
         // ignore rule
-        qDebug() << "   " << qPrintable(current) << "rev" << revnum
-                 << "-> ignored (rule" << rule << ")";
+        //qDebug() << "   " << qPrintable(current) << "rev" << revnum
+        //         << "-> ignored (rule" << rule << ")";
         return EXIT_SUCCESS;
 
     case Rules::Match::Recurse:

@@ -70,8 +70,6 @@ int main(int argc, char **argv)
     QHash<QString, Repository *> repositories;
     foreach (Rules::Repository rule, rules.repositories()) {
         Repository *repo = new Repository(rule);
-        if (min_rev > 1)
-            repo->reloadBranches();
         repositories.insert(rule.name, repo);
     }
 
