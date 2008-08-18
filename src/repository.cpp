@@ -38,8 +38,14 @@ Repository::Repository(const Rules::Repository &rule)
 Repository::~Repository()
 {
     if (fastImport.state() != QProcess::NotRunning) {
+        fastImport.write("checkpoint\n");
+        fastImport.waitForBytesWritten(-1);
         fastImport.closeWriteChannel();
-        fastImport.waitForFinished();
+        if (!fastImport.waitForFinished()) {
+            fastImport.terminate();
+            if (!fastImport.waitForFinished(200))
+                qWarning() << "git-fast-import for repository" << name << "did not die";
+        }
     }
 }
 
