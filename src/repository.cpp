@@ -20,7 +20,7 @@
 #include <QDebug>
 
 Repository::Repository(const Rules::Repository &rule)
-    : name(rule.name), processHasStarted(false)
+    : name(rule.name), commitCount(0), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
