@@ -80,7 +80,9 @@ private:
     bool processHasStarted;
 
     void startFastImport();
+    void closeFastImport();
 
+    friend class ProcessCache;
     Q_DISABLE_COPY(Repository)
 };
 

@@ -18,6 +18,31 @@
 #include "repository.h"
 #include <QTextStream>
 #include <QDebug>
+#include <QLinkedList>
+
+static const int maxSimultaneousProcesses = 100;
+
+class ProcessCache: QLinkedList<Repository *>
+{
+public:
+    void touch(Repository *repo)
+    {
+        remove(repo);
+
+        // if the cache is too big, remove from the front
+        while (size() >= maxSimultaneousProcesses)
+            takeFirst()->closeFastImport();
+
+        // append to the end
+        append(repo);
+    }
+
+    inline void remove(Repository *repo)
+    {
+        removeOne(repo);
+    }
+};
+static ProcessCache processCache;
 
 Repository::Repository(const Rules::Repository &rule)
     : name(rule.name), commitCount(0), processHasStarted(false)
@@ -37,6 +62,11 @@ Repository::Repository(const Rules::Repository &rule)
 
 Repository::~Repository()
 {
+    closeFastImport();
+}
+
+void Repository::closeFastImport()
+{
     if (fastImport.state() != QProcess::NotRunning) {
         fastImport.write("checkpoint\n");
         fastImport.waitForBytesWritten(-1);
@@ -47,6 +77,8 @@ Repository::~Repository()
                 qWarning() << "git-fast-import for repository" << name << "did not die";
         }
     }
+    processHasStarted = false;
+    processCache.remove(this);
 }
 
 void Repository::reloadBranches()
@@ -198,6 +230,8 @@ QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint6
 
 void Repository::Transaction::commit()
 {
+    processCache.touch(repository);
+
     // create the commit message
     QByteArray message = log;
     if (!message.endsWith('\n'))
