@@ -30,10 +30,6 @@ public:
     {
         Q_DISABLE_COPY(Transaction)
         friend class Repository;
-        struct FileProperties {
-            int mode;
-            int mark;
-        };
 
         Repository *repository;
         QByteArray branch;
@@ -45,7 +41,7 @@ public:
         int lastmark;
 
         QStringList deletedFiles;
-        QHash<QString, FileProperties> modifiedFiles;
+        QByteArray modifiedFiles;
 
         inline Transaction() {}
     public:

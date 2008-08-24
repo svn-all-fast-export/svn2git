@@ -212,19 +212,26 @@ void Repository::Transaction::deleteFile(const QString &path)
 
 QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint64 length)
 {
-    FileProperties fp;
-    fp.mode = mode;
-    fp.mark = ++lastmark;
+    int mark = ++lastmark;
+
+    if (modifiedFiles.capacity() == 0)
+        modifiedFiles.reserve(2048);
+    modifiedFiles.append("M ");
+    modifiedFiles.append(QByteArray::number(mode, 8));
+    modifiedFiles.append(" :");
+    modifiedFiles.append(QByteArray::number(mark));
+    modifiedFiles.append(' ');
+    modifiedFiles.append(path.toUtf8());
+    modifiedFiles.append("\n");
 
 #ifndef DRY_RUN
     repository->fastImport.write("blob\nmark :");
-    repository->fastImport.write(QByteArray::number(fp.mark));
+    repository->fastImport.write(QByteArray::number(mark));
     repository->fastImport.write("\ndata ");
     repository->fastImport.write(QByteArray::number(length));
     repository->fastImport.write("\n", 1);
 #endif
 
-    modifiedFiles.insert(path, fp);
     return &repository->fastImport;
 }
 
@@ -269,16 +276,7 @@ void Repository::Transaction::commit()
             repository->fastImport.write("D " + df.toUtf8() + "\n");
 
     // write the file modifications
-    QHash<QString, FileProperties>::ConstIterator it = modifiedFiles.constBegin();
-    for ( ; it != modifiedFiles.constEnd(); ++it) {
-        repository->fastImport.write("M ", 2);
-        repository->fastImport.write(QByteArray::number(it->mode, 8));
-        repository->fastImport.write(" :", 2);
-        repository->fastImport.write(QByteArray::number(it->mark));
-        repository->fastImport.write(" ", 1);
-        repository->fastImport.write(it.key().toUtf8());
-        repository->fastImport.write("\n", 1);
-    }
+    repository->fastImport.write(modifiedFiles);
 
     repository->fastImport.write("\nprogress Commit #" +
                                  QByteArray::number(repository->commitCount) +
