@@ -38,7 +38,6 @@ public:
         QByteArray log;
         uint datetime;
         int revnum;
-        int lastmark;
 
         QStringList deletedFiles;
         QByteArray modifiedFiles;
@@ -73,6 +72,8 @@ private:
     QString name;
     QProcess fastImport;
     int commitCount;
+    int outstandingTransactions;
+    int lastmark;
     bool processHasStarted;
 
     void startFastImport();

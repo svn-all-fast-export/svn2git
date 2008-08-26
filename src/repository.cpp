@@ -45,7 +45,7 @@ public:
 static ProcessCache processCache;
 
 Repository::Repository(const Rules::Repository &rule)
-    : name(rule.name), commitCount(0), processHasStarted(false)
+    : name(rule.name), commitCount(0), outstandingTransactions(0), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
@@ -62,6 +62,7 @@ Repository::Repository(const Rules::Repository &rule)
 
 Repository::~Repository()
 {
+    Q_ASSERT(outstandingTransactions == 0);
     closeFastImport();
 }
 
@@ -154,11 +155,12 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->svnprefix = svnprefix.toUtf8();
     txn->datetime = 0;
     txn->revnum = revnum;
-    txn->lastmark = revnum;
 
     if ((++commitCount % 10000) == 0)
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
+    if (++outstandingTransactions == 0)
+        lastmark = 1;           // reset the mark number
     return txn;
 }
 
@@ -188,6 +190,7 @@ void Repository::startFastImport()
 
 Repository::Transaction::~Transaction()
 {
+    --repository->outstandingTransactions;
 }
 
 void Repository::Transaction::setAuthor(const QByteArray &a)
@@ -212,7 +215,7 @@ void Repository::Transaction::deleteFile(const QString &path)
 
 QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint64 length)
 {
-    int mark = ++lastmark;
+    int mark = ++repository->lastmark;
 
     if (modifiedFiles.capacity() == 0)
         modifiedFiles.reserve(2048);
@@ -252,7 +255,6 @@ void Repository::Transaction::commit()
 
         QTextStream s(&repository->fastImport);
         s << "commit " << branchRef << endl;
-        s << "mark :" << revnum << endl;
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
