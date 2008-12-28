@@ -159,7 +159,7 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     if ((++commitCount % 10000) == 0)
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
-    if (++outstandingTransactions == 0)
+    if (outstandingTransactions++ == 0)
         lastmark = 1;           // reset the mark number
     return txn;
 }
