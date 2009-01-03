@@ -16,6 +16,7 @@
  */
 
 #include "repository.h"
+#include "options.h"
 #include <QTextStream>
 #include <QDebug>
 #include <QLinkedList>
@@ -246,7 +247,8 @@ void Repository::Transaction::commit()
     QByteArray message = log;
     if (!message.endsWith('\n'))
         message += '\n';
-    message += "\nsvn path=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
+    if (Options::globalOptions->switches.value("metadata", true))
+        message += "\nsvn path=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
 
     {
         QByteArray branchRef = branch;

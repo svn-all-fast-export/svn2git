@@ -42,7 +42,7 @@ void Options::showHelp()
 void Options::parseArguments(const QStringList &argumentList)
 {
     QSet<QString> validOptions;
-    validOptions << "help";
+    validOptions << "help" << "metadata";
 
     QSet<QString> validOptionsWithComplement;
     validOptionsWithComplement << "resume-from" << "max-rev" << "identity-map";
