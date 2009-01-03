@@ -349,7 +349,7 @@ time_t get_epoch(char *svn_date)
     memset(&tm, 0, sizeof tm);
     QByteArray date(svn_date, strlen(svn_date) - 8);
     strptime(date, "%Y-%m-%dT%H:%M:%S", &tm);
-    return mktime(&tm);
+    return timegm(&tm);
 }
 
 class SvnRevision
