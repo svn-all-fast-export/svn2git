@@ -40,7 +40,11 @@ public:
 
     inline void remove(Repository *repo)
     {
+#if QT_VERSION >= 0x040400
         removeOne(repo);
+#else
+        removeAll(repo);
+#endif
     }
 };
 static ProcessCache processCache;
