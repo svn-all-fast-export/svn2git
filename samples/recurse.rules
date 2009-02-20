@@ -18,9 +18,13 @@ match /trunk/([^/]+)/
   branch master
 end match
 
+#
+# SVN layout:
+#  /branches/branchname/project1
+#  /branches/branchname/project2
 match /branches/([^/]+)/([^/]+)/
-  repository \1
-  branch \2
+  repository \2
+  branch \1
 end match
 
 
