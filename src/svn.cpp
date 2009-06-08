@@ -656,7 +656,9 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
             entryFrom = path_from + QByteArray("/") + dirent->name;
 
         // check if this entry is in the changelist for this revision already
-        if (apr_hash_get(changes, entry.constData(), APR_HASH_KEY_STRING)) {
+        svn_fs_path_change_t *otherchange =
+            (svn_fs_path_change_t*)apr_hash_get(changes, entry.constData(), APR_HASH_KEY_STRING);
+        if (otherchange && otherchange->change_kind == svn_fs_path_change_add) {
             qDebug() << entry << "rev" << revnum
                      << "is in the change-list, deferring to that one";
             continue;
