@@ -55,6 +55,7 @@ void Rules::load()
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
+    QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
 
     QTextStream s(&file);
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
@@ -108,6 +109,9 @@ void Rules::load()
                     match.action = Match::Recurse;
                 else
                     qFatal("Invalid action \"%s\" on line %d", qPrintable(action), lineNumber);
+                continue;
+            } else if (matchAnnotateLine.exactMatch(line)) {
+                match.annotate = matchAnnotateLine.cap(1) == "true";
                 continue;
             } else if (line == "end match") {
                 if (!match.repository.isEmpty())

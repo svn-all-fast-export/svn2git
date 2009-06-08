@@ -365,6 +365,11 @@ public:
     svn_fs_root_t *fs_root;
     int revnum;
 
+    // must call fetchRevProps first:
+    QByteArray authorident;
+    QByteArray log;
+    uint epoch;
+
     SvnRevision(int revision, svn_fs_t *f, apr_pool_t *parent_pool)
         : pool(parent_pool), fs(f), fs_root(0), revnum(revision)
     {
@@ -377,6 +382,7 @@ public:
     }
 
     int prepareTransactions();
+    int fetchRevProps();
     int commit();
 
     int exportEntry(const char *path, const svn_fs_path_change_t *change, apr_hash_t *changes);
@@ -440,18 +446,17 @@ int SvnRevision::prepareTransactions()
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::commit()
+int SvnRevision::fetchRevProps()
 {
-    // now create the commit
     apr_hash_t *revprops;
     SVN_ERR(svn_fs_revision_proplist(&revprops, fs, revnum, pool));
     svn_string_t *svnauthor = (svn_string_t*)apr_hash_get(revprops, "svn:author", APR_HASH_KEY_STRING);
     svn_string_t *svndate = (svn_string_t*)apr_hash_get(revprops, "svn:date", APR_HASH_KEY_STRING);
     svn_string_t *svnlog = (svn_string_t*)apr_hash_get(revprops, "svn:log", APR_HASH_KEY_STRING);
 
-    QByteArray log = (char *)svnlog->data;
-    QByteArray authorident = svnauthor ? identities.value((char *)svnauthor->data) : QByteArray();
-    time_t epoch = get_epoch((char*)svndate->data);
+    log = (char *)svnlog->data;
+    authorident = svnauthor ? identities.value((char *)svnauthor->data) : QByteArray();
+    epoch = get_epoch((char*)svndate->data);
     if (authorident.isEmpty()) {
         if (!svnauthor || svn_string_isempty(svnauthor))
             authorident = "nobody <nobody@localhost>";
@@ -459,7 +464,14 @@ int SvnRevision::commit()
             authorident = svnauthor->data + QByteArray(" <") +
                           svnauthor->data + QByteArray("@localhost>");
     }
+    return EXIT_SUCCESS;
+}
 
+int SvnRevision::commit()
+{
+    // now create the commit
+    if (fetchRevProps() != EXIT_SUCCESS)
+        return EXIT_FAILURE;
     foreach (Repository::Transaction *txn, transactions) {
         txn->setAuthor(authorident);
         txn->setDateTime(epoch);
@@ -596,6 +608,12 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                 }
 
                 repo->createBranch(branch, revnum, prevbranch, rev_from);
+                if (rule.annotate) {
+                    // create an annotated tag
+                    fetchRevProps();
+                    repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
+                                             epoch, log);
+                }
                 return EXIT_SUCCESS;
             }
         }

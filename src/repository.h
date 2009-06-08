@@ -62,13 +62,28 @@ public:
                       const QString &branchFrom, int revFrom);
     Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
 
+    void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,
+                            const QByteArray &author, uint dt,
+                            const QByteArray &log);
+    void finalizeTags();
+
 private:
     struct Branch
     {
         int created;
     };
+    struct AnnotatedTag
+    {
+        QString supportingRef;
+        QByteArray svnprefix;
+        QByteArray author;
+        QByteArray log;
+        uint dt;
+        int revnum;
+    };
 
     QHash<QString, Branch> branches;
+    QHash<QString, AnnotatedTag> annotatedTags;
     QString name;
     QProcess fastImport;
     int commitCount;

@@ -47,6 +47,7 @@ public:
         int minRevision;
         int maxRevision;
         int lineNumber;
+        bool annotate;
 
         enum Action {
             Ignore,
@@ -54,7 +55,7 @@ public:
             Recurse
         } action;
 
-        Match() : minRevision(-1), maxRevision(-1), lineNumber(0), action(Ignore) { }
+        Match() : minRevision(-1), maxRevision(-1), lineNumber(0), annotate(false), action(Ignore) { }
     };
 
     Rules(const QString &filename);

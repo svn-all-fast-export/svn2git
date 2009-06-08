@@ -85,7 +85,11 @@ int main(int argc, char **argv)
         if (!svn.exportRevision(i))
             break;
 
-    qDeleteAll(repositories);
+    foreach (Repository *repo, repositories) {
+        repo->finalizeTags();
+        delete repo;
+    }
+
     // success
     return 0;
 }

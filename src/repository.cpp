@@ -142,7 +142,8 @@ void Repository::createBranch(const QString &branch, int revnum,
     }
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
-        "progress Branch " + branchRef + " created from " + branchFromRef + "\n\n");
+                     "progress Branch " + branchRef + " created from "
+                     + branchFromRef + " r" + QByteArray::number(revnum) + "\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
@@ -167,6 +168,76 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     if (outstandingTransactions++ == 0)
         lastmark = 1;           // reset the mark number
     return txn;
+}
+
+void Repository::createAnnotatedTag(const QString &ref, const QString &svnprefix,
+                                    int revnum,
+                                    const QByteArray &author, uint dt,
+                                    const QByteArray &log)
+{
+    QString tagName = ref;
+    if (tagName.startsWith("refs/tags/"))
+        tagName.remove(0, 10);
+
+    if (!annotatedTags.contains(tagName))
+        printf("Creating annotated tag %s (%s)\n", qPrintable(tagName), qPrintable(ref));
+    else
+        printf("Re-creating annotated tag %s\n", qPrintable(tagName));
+
+    AnnotatedTag &tag = annotatedTags[tagName];
+    tag.supportingRef = ref;
+    tag.svnprefix = svnprefix.toUtf8();
+    tag.revnum = revnum;
+    tag.author = author;
+    tag.log = log;
+    tag.dt = dt;
+}
+
+void Repository::finalizeTags()
+{
+    if (annotatedTags.isEmpty())
+        return;
+
+    printf("Finalising tags for %s...", qPrintable(name));
+    startFastImport();
+
+    QHash<QString, AnnotatedTag>::ConstIterator it = annotatedTags.constBegin();
+    for ( ; it != annotatedTags.constEnd(); ++it) {
+        const QString &tagName = it.key();
+        const AnnotatedTag &tag = it.value();
+
+        QByteArray message = tag.log;
+        if (!message.endsWith('\n'))
+            message += '\n';
+        if (Options::globalOptions->switches.value("metadata", true))
+            message += "\nsvn path=" + tag.svnprefix + "; revision=" + QByteArray::number(tag.revnum) + "\n";
+
+        {
+            QByteArray branchRef = tag.supportingRef.toUtf8();
+            if (!branchRef.startsWith("refs/"))
+                branchRef.prepend("refs/heads/");
+
+            QTextStream s(&fastImport);
+            s << "progress Creating annotated tag " << tagName << " from ref " << branchRef << endl
+              << "tag " << tagName << endl
+              << "from " << branchRef << endl
+              << "tagger " << QString::fromUtf8(tag.author) << ' ' << tag.dt << " -0000" << endl
+              << "data " << message.length() << endl;
+        }
+
+        fastImport.write(message);
+        fastImport.putChar('\n');
+        if (!fastImport.waitForBytesWritten(-1))
+            qFatal("Failed to write to process: %s", qPrintable(fastImport.errorString()));
+
+        printf(" %s", qPrintable(tagName));
+        fflush(stdout);
+    }
+
+    while (fastImport.bytesToWrite())
+        if (!fastImport.waitForBytesWritten(-1))
+            qFatal("Failed to write to process: %s", qPrintable(fastImport.errorString()));
+    printf("\n");
 }
 
 void Repository::startFastImport()
