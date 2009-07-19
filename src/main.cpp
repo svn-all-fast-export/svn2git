@@ -33,8 +33,11 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
         return result;
 
     QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly))
+    if (!file.open(QIODevice::ReadOnly)) {
+        fprintf(stderr, "Could not open file %s: %s",
+                qPrintable(fileName), qPrintable(file.errorString()));
         return result;
+    }
 
     while (!file.atEnd()) {
         QByteArray line = file.readLine().trimmed();
