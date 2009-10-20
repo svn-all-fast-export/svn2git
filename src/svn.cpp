@@ -159,7 +159,10 @@ int SvnPrivate::youngestRevision()
 int SvnPrivate::openRepository(const QString &pathToRepository)
 {
     svn_repos_t *repos;
-    SVN_ERR(svn_repos_open(&repos, QFile::encodeName(pathToRepository), global_pool));
+    QString path = pathToRepository;
+    while (path.endsWith('/')) // no trailing slash allowed
+        path = path.mid(0, path.length()-1);
+    SVN_ERR(svn_repos_open(&repos, QFile::encodeName(path), global_pool));
     fs = svn_repos_fs(repos);
 
     return EXIT_SUCCESS;
