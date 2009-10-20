@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2007  Thiago Macieira <thiago@kde.org>
+ *  Copyright (C) 2009 Thomas Zander <zander@kde.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +20,7 @@
 #include "options.h"
 #include <QTextStream>
 #include <QDebug>
+#include <QDir>
 #include <QLinkedList>
 
 static const int maxSimultaneousProcesses = 100;
@@ -63,6 +65,16 @@ Repository::Repository(const Rules::Repository &rule)
     branches["master"].created = 1;
 
     fastImport.setWorkingDirectory(name);
+#ifndef DRY_RUN
+    if (!QDir(name).exists()) { // repo doesn't exist yet.
+        qDebug() << "Creating new repositoryn" << name;
+        QDir::current().mkpath(name);
+        QProcess init;
+        init.setWorkingDirectory(name);
+        init.start("git", QStringList() << "--bare" << "init");
+        init.waitForFinished(-1);
+    }
+#endif
 }
 
 Repository::~Repository()
