@@ -17,5 +17,13 @@ INCLUDEPATH += . $$SVN_INCLUDE $$APR_INCLUDE
 LIBS += -lsvn_fs-1 -lsvn_repos-1
 
 # Input
-SOURCES += options.cpp ruleparser.cpp repository.cpp svn.cpp main.cpp
-HEADERS += options.h ruleparser.h repository.h svn.h
+SOURCES += ruleparser.cpp \
+    repository.cpp \
+    svn.cpp \
+    main.cpp \
+    CommandLineParser.cpp \
+
+HEADERS += ruleparser.h \
+    repository.h \
+    svn.h \
+    CommandLineParser.h \

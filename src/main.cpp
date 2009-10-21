@@ -18,10 +18,11 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QStringList>
+#include <QTextStream>
 
 #include <stdio.h>
 
-#include "options.h"
+#include "CommandLineParser.h"
 #include "ruleparser.h"
 #include "repository.h"
 #include "svn.h"
@@ -53,19 +54,56 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
     return result;
 }
 
+static const CommandLineOption options[] = {
+    {"--identity-map FILENAME", "provide map between svn username and email"},
+    {"--rules FILENAME", "the rules file that determines what goes where"},
+    {"--add-metadata", "if passed, each git commit will have svn commit info"},
+    {"--resume-from revision", "start importing at svn revision number"},
+    {"--max-rev revision", "stop importing at svn revision number"},
+    //{"--dry-run", "don't actually write anything"}, TODO
+    {"-h, --help", "show help"},
+    {"-v, --version", "show version"},
+    CommandLineLastOption
+};
+
 int main(int argc, char **argv)
 {
+    CommandLineParser::init(argc, argv);
+    CommandLineParser::addOptionDefinitions(options);
+    CommandLineParser *args = CommandLineParser::instance();
+    if (args->contains(QLatin1String("help")) || args->arguments().count() != 1) {
+        args->usage(QString(), "[Path to subversion repo]");
+        return 0;
+    }
+    if (args->undefinedOptions().count()) {
+        QTextStream out(stderr);
+        out << "svn-all-fast-export failed: ";
+        bool first = true;
+        foreach (QString option, args->undefinedOptions()) {
+            if (!first)
+                out << "          : ";
+            out << "unrecognized option or missing argument for; `" << option << "'" << endl;
+            first = false;
+        }
+        return 10;
+    }
+    if (!args->contains("rules")) {
+        QTextStream out(stderr);
+        out << "svn-all-fast-export failed: please specify the rules using the 'rules' argument\n";
+        return 11;
+    }
+    if (!args->contains("identity-map")) {
+        QTextStream out(stderr);
+        out << "WARNING; no identity-map specified, all commits will be without email address\n\n";
+    }
+
     QCoreApplication app(argc, argv);
-
-    Options options;
-    options.parseArguments(app.arguments());
-
     // Load the configuration
-    Rules rules(options.ruleFile);
+    Rules rules(args->optionArgument(QLatin1String("rules")));
     rules.load();
 
-    int min_rev = options.options.value("resume-from").toInt();
-    int max_rev = options.options.value("max-rev").toInt();
+    int min_rev = args->optionArgument(QLatin1String("resume-from")).toInt();
+    int max_rev = args->optionArgument(QLatin1String("max-rev")).toInt();
     if (min_rev < 1)
         min_rev = 1;
 
@@ -77,10 +115,10 @@ int main(int argc, char **argv)
     }
 
     Svn::initialize();
-    Svn svn(options.pathToRepository);
+    Svn svn(args->arguments().first());
     svn.setMatchRules(rules.matchRules());
     svn.setRepositories(repositories);
-    svn.setIdentityMap(loadIdentityMapFile(options.options.value("identity-map")));
+    svn.setIdentityMap(loadIdentityMapFile(args->optionArgument("identity-map")));
 
     if (max_rev < 1)
         max_rev = svn.youngestRevision();

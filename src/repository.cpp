@@ -17,7 +17,7 @@
  */
 
 #include "repository.h"
-#include "options.h"
+#include "CommandLineParser.h"
 #include <QTextStream>
 #include <QDebug>
 #include <QDir>
@@ -221,7 +221,7 @@ void Repository::finalizeTags()
         QByteArray message = tag.log;
         if (!message.endsWith('\n'))
             message += '\n';
-        if (Options::globalOptions->switches.value("metadata", true))
+        if (CommandLineParser::instance()->contains("add-metadata"))
             message += "\nsvn path=" + tag.svnprefix + "; revision=" + QByteArray::number(tag.revnum) + "\n";
 
         {
@@ -334,7 +334,7 @@ void Repository::Transaction::commit()
     QByteArray message = log;
     if (!message.endsWith('\n'))
         message += '\n';
-    if (Options::globalOptions->switches.value("metadata", true))
+    if (CommandLineParser::instance()->contains("add-metadata"))
         message += "\nsvn path=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
 
     {
