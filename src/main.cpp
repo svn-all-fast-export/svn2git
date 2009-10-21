@@ -60,7 +60,7 @@ static const CommandLineOption options[] = {
     {"--add-metadata", "if passed, each git commit will have svn commit info"},
     {"--resume-from revision", "start importing at svn revision number"},
     {"--max-rev revision", "stop importing at svn revision number"},
-    //{"--dry-run", "don't actually write anything"}, TODO
+    {"--dry-run", "don't actually write anything"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},
     CommandLineLastOption

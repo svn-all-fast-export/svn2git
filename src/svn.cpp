@@ -26,6 +26,7 @@
 #define _LARGEFILE64_SUPPORT
 
 #include "svn.h"
+#include "CommandLineParser.h"
 
 #include <unistd.h>
 #include <string.h>
@@ -260,40 +261,40 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
 
     SVN_ERR(svn_fs_file_length(&stream_length, fs_root, pathname, dumppool));
 
-#ifndef DRY_RUN
-    // open the file
     svn_stream_t *in_stream, *out_stream;
-    SVN_ERR(svn_fs_file_contents(&in_stream, fs_root, pathname, dumppool));
-#endif
+    if (!CommandLineParser::instance()->contains("dry-run")) {
+        // open the file
+        SVN_ERR(svn_fs_file_contents(&in_stream, fs_root, pathname, dumppool));
+    }
 
     // maybe it's a symlink?
     svn_string_t *propvalue;
     SVN_ERR(svn_fs_node_prop(&propvalue, fs_root, pathname, "svn:special", dumppool));
     if (propvalue) {
         apr_size_t len = strlen("link ");
-#ifndef DRY_RUN
-        QByteArray buf;
-        buf.reserve(len);
-        SVN_ERR(svn_stream_read(in_stream, buf.data(), &len));
-        if (len != strlen("link ") || strncmp(buf, "link ", len) != 0)
-            qFatal("file %s is svn:special but not a symlink", pathname);
-#endif
+        if (!CommandLineParser::instance()->contains("dry-run")) {
+            QByteArray buf;
+            buf.reserve(len);
+            SVN_ERR(svn_stream_read(in_stream, buf.data(), &len));
+            if (len != strlen("link ") || strncmp(buf, "link ", len) != 0)
+                qFatal("file %s is svn:special but not a symlink", pathname);
+        }
         mode = 0120000;
         stream_length -= len;
     }
 
     QIODevice *io = txn->addFile(finalPathName, mode, stream_length);
 
-#ifndef DRY_RUN
-    // open a generic svn_stream_t for the QIODevice
-    out_stream = streamForDevice(io, dumppool);
-    SVN_ERR(svn_stream_copy(in_stream, out_stream, dumppool));
-    svn_stream_close(out_stream);
-    svn_stream_close(in_stream);
+    if (!CommandLineParser::instance()->contains("dry-run")) {
+        // open a generic svn_stream_t for the QIODevice
+        out_stream = streamForDevice(io, dumppool);
+        SVN_ERR(svn_stream_copy(in_stream, out_stream, dumppool));
+        svn_stream_close(out_stream);
+        svn_stream_close(in_stream);
 
-    // print an ending newline
-    io->putChar('\n');
-#endif
+        // print an ending newline
+        io->putChar('\n');
+    }
 
     return EXIT_SUCCESS;
 }

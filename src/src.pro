@@ -9,7 +9,6 @@ exists(local-config.pri):include(local-config.pri)
 TEMPLATE = app
 TARGET = ../svn-all-fast-export
 DEPENDPATH += .
-#DEFINES += DRY_RUN
 QT = core
 
 INCLUDEPATH += . $$SVN_INCLUDE $$APR_INCLUDE

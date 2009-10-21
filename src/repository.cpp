@@ -65,16 +65,16 @@ Repository::Repository(const Rules::Repository &rule)
     branches["master"].created = 1;
 
     fastImport.setWorkingDirectory(name);
-#ifndef DRY_RUN
-    if (!QDir(name).exists()) { // repo doesn't exist yet.
-        qDebug() << "Creating new repositoryn" << name;
-        QDir::current().mkpath(name);
-        QProcess init;
-        init.setWorkingDirectory(name);
-        init.start("git", QStringList() << "--bare" << "init");
-        init.waitForFinished(-1);
+    if (!CommandLineParser::instance()->contains("dry-run")) {
+        if (!QDir(name).exists()) { // repo doesn't exist yet.
+            qDebug() << "Creating new repositoryn" << name;
+            QDir::current().mkpath(name);
+            QProcess init;
+            init.setWorkingDirectory(name);
+            init.start("git", QStringList() << "--bare" << "init");
+            init.waitForFinished(-1);
+        }
     }
-#endif
 }
 
 Repository::~Repository()
@@ -266,11 +266,11 @@ void Repository::startFastImport()
         fastImport.setStandardOutputFile(outputFile, QIODevice::Append);
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
-#ifndef DRY_RUN
-        fastImport.start("git", QStringList() << "fast-import");
-#else
-        fastImport.start("/bin/cat", QStringList());
-#endif
+        if (!CommandLineParser::instance()->contains("dry-run")) {
+            fastImport.start("git", QStringList() << "fast-import");
+        } else {
+            fastImport.start("/bin/cat", QStringList());
+        }
 
         reloadBranches();
     }
@@ -315,13 +315,13 @@ QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint6
     modifiedFiles.append(path.toUtf8());
     modifiedFiles.append("\n");
 
-#ifndef DRY_RUN
-    repository->fastImport.write("blob\nmark :");
-    repository->fastImport.write(QByteArray::number(mark));
-    repository->fastImport.write("\ndata ");
-    repository->fastImport.write(QByteArray::number(length));
-    repository->fastImport.write("\n", 1);
-#endif
+    if (!CommandLineParser::instance()->contains("dry-run")) {
+        repository->fastImport.write("blob\nmark :");
+        repository->fastImport.write(QByteArray::number(mark));
+        repository->fastImport.write("\ndata ");
+        repository->fastImport.write(QByteArray::number(length));
+        repository->fastImport.write("\n", 1);
+    }
 
     return &repository->fastImport;
 }
