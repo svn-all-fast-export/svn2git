@@ -198,7 +198,7 @@ void CommandLineParser::Private::parse()
     bool optionsAllowed = true;
     ParsedOption option;
     OptionDefinition currentDefinition;
-    for(int i = 1; i < argumentCount; i++) {
+    for (int i = 1; i < argumentCount; i++) {
         QString arg = QString::fromLocal8Bit(argumentStrings[i]);
         if (optionsAllowed) {
             if (arg == QLatin1String("--")) {
@@ -214,9 +214,11 @@ void CommandLineParser::Private::parse()
                 continue;
             }
             if (arg[0].unicode() == '-' && arg.length() > 1) {
-                for(int x = 1; x < arg.length(); x++) {
+                for (int x = 1; x < arg.length(); x++) {
+                    bool resolved = false;
                     foreach (OptionDefinition definition, definitions) {
                         if (definition.shortName == arg[x]) {
+                            resolved = true;
                             processor.next(option);
                             currentDefinition = definition;
                             option.option = definition.name;
@@ -228,7 +230,7 @@ void CommandLineParser::Private::parse()
                             break;
                         }
                     }
-                    if (option.option.isEmpty()) { // nothing found; copy char so it ends up in unrecognized
+                    if (!resolved) { // nothing found; copy char so it ends up in unrecognized
                         option.option = arg[x];
                         processor.next(option);
                     }
