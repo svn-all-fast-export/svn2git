@@ -47,9 +47,6 @@ void Rules::load()
         return;
 
     // initialize the regexps we will use
-    QRegExp repoLine("create repository\\s+(\\S+)", Qt::CaseInsensitive);
-    QRegExp repoBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
-
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchActionLine("action\\s+(\\w+)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
@@ -75,9 +72,9 @@ void Rules::load()
             continue;
 
         if (state == ReadingRepository) {
-            if (repoBranchLine.exactMatch(line)) {
+            if (matchBranchLine.exactMatch(line)) {
                 Repository::Branch branch;
-                branch.name = repoBranchLine.cap(1);
+                branch.name = matchBranchLine.cap(1);
 
                 repo.branches += branch;
                 continue;
@@ -122,14 +119,14 @@ void Rules::load()
             }
         }
 
-        bool isRepositoryRule = repoLine.exactMatch(line);
+        bool isRepositoryRule = matchRepoLine.exactMatch(line);
         bool isMatchRule = matchLine.exactMatch(line);
 
         if (isRepositoryRule) {
             // repository rule
             state = ReadingRepository;
             repo = Repository(); // clear
-            repo.name = repoLine.cap(1);
+            repo.name = matchRepoLine.cap(1);
             repo.lineNumber = lineNumber;
         } else if (isMatchRule) {
             // match rule
