@@ -186,8 +186,10 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
             continue;
         if (it->action == Rules::Match::Recurse && ruleMask & NoRecurseRule)
             continue;
-        if (it->rx.indexIn(current) == 0)
+        if (it->rx.indexIn(current) == 0) {
+            it->rootdir.indexIn(current); //Force a match run
             return it;
+        }
     }
 
     // no match
@@ -198,22 +200,29 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
                           QString *repository_p, QString *branch_p, QString *path_p)
 {
     QString svnprefix = pathName;
-    svnprefix.truncate(rule.rx.matchedLength());
-    if (svnprefix_p)
+    QString fullsvnprefix = pathName;
+    if( rule.rootdir.pattern().isEmpty() )
+        svnprefix.truncate(rule.rx.matchedLength());
+    else
+        svnprefix.truncate(rule.rootdir.matchedLength());
+    fullsvnprefix.truncate(rule.rx.matchedLength());
+    if (svnprefix_p) {
         *svnprefix_p = svnprefix;
+    }
 
     if (repository_p) {
-        *repository_p = svnprefix;
+        *repository_p = fullsvnprefix;
         repository_p->replace(rule.rx, rule.repository);
     }
 
     if (branch_p) {
-        *branch_p = svnprefix;
+        *branch_p = fullsvnprefix;
         branch_p->replace(rule.rx, rule.branch);
     }
 
-    if (path_p)
+    if (path_p) {
         *path_p = pathName.mid(svnprefix.length());
+    }
 }
 
 static int pathMode(svn_fs_root_t *fs_root, const char *pathname, apr_pool_t *pool)

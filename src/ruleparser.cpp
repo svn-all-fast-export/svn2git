@@ -55,6 +55,7 @@ void Rules::load()
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
+    QRegExp matchRootDirLine("rootdir\\s+(\\S+)", Qt::CaseInsensitive);
 
     QTextStream s(&file);
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
@@ -97,6 +98,9 @@ void Rules::load()
                     match.minRevision = matchRevLine.cap(2).toInt();
                 else            // must be max
                     match.maxRevision = matchRevLine.cap(2).toInt();
+                continue;
+            } else if (matchRootDirLine.exactMatch(line)) {
+                match.rootdir = QRegExp(matchRootDirLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
                 continue;
             } else if (matchActionLine.exactMatch(line)) {
                 QString action = matchActionLine.cap(1);
