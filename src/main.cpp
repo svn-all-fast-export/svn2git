@@ -46,7 +46,14 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
         if (space == -1)
             continue;           // invalid line
 
-        QByteArray realname = line.mid(space).trimmed();
+        // Support git-svn author files, too
+        // - svn2git native:  loginname Joe User <user@example.com>
+        // - git-svn:         loginname = Joe User <user@example.com>
+        int rightspace = space;
+        if (line.indexOf(" = ") == space)
+            rightspace += 2;
+
+        QByteArray realname = line.mid(rightspace).trimmed();
         line.truncate(space);
         result.insert(line, realname);
     };
