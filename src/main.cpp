@@ -61,6 +61,7 @@ static const CommandLineOption options[] = {
     {"--resume-from revision", "start importing at svn revision number"},
     {"--max-rev revision", "stop importing at svn revision number"},
     {"--dry-run", "don't actually write anything"},
+    {"--debug-rules", "print what rule is being used for each file"},
     {"--commit-interval NUMBER", "if passed the cache will be flushed to git every NUMBER of commits"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},

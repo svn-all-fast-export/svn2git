@@ -550,6 +550,8 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
                                 apr_hash_t *changes, const QString &current,
                                 const Rules::Match &rule, apr_pool_t *pool)
 {
+    if(CommandLineParser::instance()->contains( QLatin1String("debug-rules")))
+      qDebug() << "    " << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")";
     switch (rule.action) {
     case Rules::Match::Ignore:
         // ignore rule
