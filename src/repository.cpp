@@ -174,7 +174,7 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->datetime = 0;
     txn->revnum = revnum;
 
-    if ((++commitCount % 10000) == 0)
+    if ((++commitCount % CommandLineParser::instance()->optionArgument(QLatin1String("commit-interval"), QLatin1String("10000")).toInt()) == 0)
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
     if (outstandingTransactions++ == 0)
