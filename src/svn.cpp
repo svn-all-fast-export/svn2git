@@ -187,7 +187,6 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
         if (it->action == Rules::Match::Recurse && ruleMask & NoRecurseRule)
             continue;
         if (it->rx.indexIn(current) == 0) {
-            it->rootdir.indexIn(current); //Force a match run
             return it;
         }
     }
@@ -200,28 +199,24 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
                           QString *repository_p, QString *branch_p, QString *path_p)
 {
     QString svnprefix = pathName;
-    QString fullsvnprefix = pathName;
-    if( rule.rootdir.pattern().isEmpty() )
-        svnprefix.truncate(rule.rx.matchedLength());
-    else
-        svnprefix.truncate(rule.rootdir.matchedLength());
-    fullsvnprefix.truncate(rule.rx.matchedLength());
+    svnprefix.truncate(rule.rx.matchedLength());
+
     if (svnprefix_p) {
         *svnprefix_p = svnprefix;
     }
 
     if (repository_p) {
-        *repository_p = fullsvnprefix;
+        *repository_p = svnprefix;
         repository_p->replace(rule.rx, rule.repository);
     }
 
     if (branch_p) {
-        *branch_p = fullsvnprefix;
+        *branch_p = svnprefix;
         branch_p->replace(rule.rx, rule.branch);
     }
 
     if (path_p) {
-        *path_p = pathName.mid(svnprefix.length());
+        *path_p = rule.prefix + pathName.mid(svnprefix.length());
     }
 }
 
@@ -550,7 +545,7 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
                                 apr_hash_t *changes, const QString &current,
                                 const Rules::Match &rule, apr_pool_t *pool)
 {
-    if(CommandLineParser::instance()->contains( QLatin1String("debug-rules")))
+    if(CommandLineParser::instance()->contains( QLatin1String("debug-rules")) && rule.action != Rules::Match::Ignore)
       qDebug() << "    " << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")";
     switch (rule.action) {
     case Rules::Match::Ignore:

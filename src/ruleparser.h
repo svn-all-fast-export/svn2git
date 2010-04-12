@@ -44,7 +44,7 @@ public:
         QRegExp rx;
         QString repository;
         QString branch;
-        QRegExp rootdir;
+        QString prefix;
         int minRevision;
         int maxRevision;
         int lineNumber;
