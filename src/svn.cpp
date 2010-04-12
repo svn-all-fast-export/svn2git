@@ -216,6 +216,9 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
     }
 
     if (path_p) {
+        QString path = pathName.mid(svnprefix.length());
+        if( !path.isEmpty() && !rule.prefix.isEmpty() )
+            path.prepend('/');
         *path_p = rule.prefix + pathName.mid(svnprefix.length());
     }
 }
@@ -545,7 +548,7 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
                                 apr_hash_t *changes, const QString &current,
                                 const Rules::Match &rule, apr_pool_t *pool)
 {
-    if(CommandLineParser::instance()->contains( QLatin1String("debug-rules")) && rule.action != Rules::Match::Ignore)
+    if(CommandLineParser::instance()->contains( QLatin1String("debug-rules")))
       qDebug() << "    " << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")";
     switch (rule.action) {
     case Rules::Match::Ignore:

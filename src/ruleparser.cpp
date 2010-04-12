@@ -102,7 +102,9 @@ void Rules::load()
             } else if (matchPrefixLine.exactMatch(line)) {
                 match.prefix = matchPrefixLine.cap(1);
                 if( match.prefix.startsWith('/'))
-                    qFatal("Prefix starts with \"/\" on line %d, this can cause git-fast-import to crach.", lineNumber );
+                    match.prefix = match.prefix.mid(1);
+                if( match.prefix.endsWith('/'))
+                    match.prefix.chop(1);
                 continue;
             } else if (matchActionLine.exactMatch(line)) {
                 QString action = matchActionLine.cap(1);
