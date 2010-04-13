@@ -103,8 +103,8 @@ void Rules::load()
                 match.prefix = matchPrefixLine.cap(1);
                 if( match.prefix.startsWith('/'))
                     match.prefix = match.prefix.mid(1);
-                if( match.prefix.endsWith('/'))
-                    match.prefix.chop(1);
+                if( !match.prefix.endsWith('/'))
+                    match.prefix.append('/');
                 continue;
             } else if (matchActionLine.exactMatch(line)) {
                 QString action = matchActionLine.cap(1);
