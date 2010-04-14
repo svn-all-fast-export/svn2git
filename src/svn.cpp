@@ -650,10 +650,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     } else if (!current.endsWith('/')) {
         dumpBlob(txn, fs_root, key, path, pool);
     } else {
-        QString pathNoSlash = path;
-        if(pathNoSlash.endsWith('/'))
-            pathNoSlash.chop(1);
-        txn->deleteFile(pathNoSlash);
+        txn->deleteFile(path);
         recursiveDumpDir(txn, fs_root, key, path, pool);
     }
 

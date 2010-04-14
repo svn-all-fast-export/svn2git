@@ -298,7 +298,10 @@ void Repository::Transaction::setLog(const QByteArray &l)
 
 void Repository::Transaction::deleteFile(const QString &path)
 {
-    deletedFiles.append(path);
+    QString pathNoSlash = path;
+    if(pathNoSlash.endsWith('/'))
+        pathNoSlash.chop(1);
+    deletedFiles.append(pathNoSlash);
 }
 
 QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint64 length)
