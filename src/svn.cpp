@@ -216,11 +216,8 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
     }
 
     if (path_p) {
-        QString path = pathName.mid(svnprefix.length());
-        if( !path.isEmpty() && !rule.prefix.isEmpty() )
-            path.prepend('/');
         QString prefix = svnprefix.replace(rule.rx, rule.prefix);
-        *path_p = prefix + path;
+        *path_p = prefix + pathName.mid(svnprefix.length());
     }
 }
 
@@ -655,7 +652,8 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         dumpBlob(txn, fs_root, key, path, pool);
     } else {
         QString pathNoSlash = path;
-        pathNoSlash.chop(1);
+        if(pathNoSlash.endsWith('/'))
+            pathNoSlash.chop(1);
         txn->deleteFile(pathNoSlash);
         recursiveDumpDir(txn, fs_root, key, path, pool);
     }
