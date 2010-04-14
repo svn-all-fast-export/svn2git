@@ -219,7 +219,8 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
         QString path = pathName.mid(svnprefix.length());
         if( !path.isEmpty() && !rule.prefix.isEmpty() )
             path.prepend('/');
-        *path_p = rule.prefix + path;
+        QString prefix = svnprefix.replace(rule.rx, rule.prefix);
+        *path_p = prefix + path;
     }
 }
 
