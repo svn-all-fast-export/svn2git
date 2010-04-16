@@ -44,7 +44,7 @@ void Rules::load()
 {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly))
-        return;
+        qFatal("Could not read the rules file: %s", qPrintable(filename));
 
     // initialize the regexps we will use
     QRegExp repoLine("create repository\\s+(\\S+)", Qt::CaseInsensitive);
