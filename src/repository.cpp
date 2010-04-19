@@ -376,9 +376,9 @@ void Repository::Transaction::commit()
                                  QByteArray::number(repository->commitCount) +
                                  " branch " + branch +
                                  " = SVN r" + QByteArray::number(revnum) + "\n\n");
-    printf(" %d modifications to \"%s\"",
-           deletedFiles.count() + modifiedFiles.count(),
-           qPrintable(repository->name));
+    printf(" %d modifications from SVN %s to %s/%s",
+           deletedFiles.count() + modifiedFiles.count(), svnprefix.data(),
+           qPrintable(repository->name), branch.data());
 
     while (repository->fastImport.bytesToWrite())
         if (!repository->fastImport.waitForBytesWritten(-1))
