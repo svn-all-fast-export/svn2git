@@ -67,7 +67,7 @@ Repository::Repository(const Rules::Repository &rule)
     fastImport.setWorkingDirectory(name);
     if (!CommandLineParser::instance()->contains("dry-run")) {
         if (!QDir(name).exists()) { // repo doesn't exist yet.
-            qDebug() << "Creating new repositoryn" << name;
+            qDebug() << "Creating new repository" << name;
             QDir::current().mkpath(name);
             QProcess init;
             init.setWorkingDirectory(name);
