@@ -216,7 +216,8 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
     }
 
     if (path_p) {
-        QString prefix = svnprefix.replace(rule.rx, rule.prefix);
+        QString prefix = svnprefix;
+        prefix.replace(rule.rx, rule.prefix);
         *path_p = prefix + pathName.mid(svnprefix.length());
     }
 }
