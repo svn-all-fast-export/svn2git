@@ -509,16 +509,16 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     svn_boolean_t is_dir;
     SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
     if (is_dir) {
+        current += '/';
         if (change->change_kind == svn_fs_path_change_modify ||
             change->change_kind == svn_fs_path_change_add) {
             if (path_from == NULL) {
-            // freshly added directory, or modified properties
-            // Git doesn't handle directories, so we don't either
-            //qDebug() << "   mkdir ignored:" << key;
-            return EXIT_SUCCESS;
+                // freshly added directory, or modified properties
+                // Git doesn't handle directories, so we don't either
+                //qDebug() << "   mkdir ignored:" << key;
+                return EXIT_SUCCESS;
             }
 
-            current += '/';
             qDebug() << "   " << key << "was copied from" << path_from << "rev" << rev_from;
         } else if (change->change_kind == svn_fs_path_change_delete) {
             qDebug() << "   " << key << "was deleted";
