@@ -120,7 +120,7 @@ void Repository::reloadBranches()
 }
 
 void Repository::createBranch(const QString &branch, int revnum,
-                              const QString &branchFrom, int)
+                              const QString &branchFrom, int branchRevNum)
 {
     startFastImport();
     if (!branches.contains(branch)) {
@@ -129,8 +129,9 @@ void Repository::createBranch(const QString &branch, int revnum,
     }
 
     QByteArray branchRef = branch.toUtf8();
-    if (!branchRef.startsWith("refs/"))
-        branchRef.prepend("refs/heads/");
+        if (!branchRef.startsWith("refs/"))
+            branchRef.prepend("refs/heads/");
+
 
     Branch &br = branches[branch];
     if (br.created && br.created != revnum) {
@@ -142,9 +143,18 @@ void Repository::createBranch(const QString &branch, int revnum,
 
     // now create the branch
     br.created = revnum;
-    QByteArray branchFromRef = branchFrom.toUtf8();
-    if (!branchFromRef.startsWith("refs/"))
-        branchFromRef.prepend("refs/heads/");
+    QByteArray branchFromRef;
+    const int closestCommit = *qLowerBound(exportedCommits, branchRevNum);
+    if(commitMarks.contains(closestCommit))
+    {
+        branchFromRef = ":" + QByteArray::number(commitMarks.value(closestCommit));
+    } else {
+        qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
+                << "creating an empty branch.";
+        branchFromRef = branchFrom.toUtf8();
+        if (!branchFromRef.startsWith("refs/"))
+            branchFromRef.prepend("refs/heads/");
+    }
 
     if (!branches.contains(branchFrom) || !branches.value(branchFrom).created) {
         qCritical() << branch << "in repository" << name
@@ -155,7 +165,7 @@ void Repository::createBranch(const QString &branch, int revnum,
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
                      "progress Branch " + branchRef + " created from "
-                     + branchFromRef + " r" + QByteArray::number(revnum) + "\n\n");
+                     + branchFromRef + " r" + QByteArray::number(branchRevNum) + "\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
@@ -177,8 +187,7 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     if ((++commitCount % CommandLineParser::instance()->optionArgument(QLatin1String("commit-interval"), QLatin1String("10000")).toInt()) == 0)
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
-    if (outstandingTransactions++ == 0)
-        lastmark = 1;           // reset the mark number
+    outstandingTransactions++;
     return txn;
 }
 
@@ -347,6 +356,9 @@ void Repository::Transaction::commit()
 
         QTextStream s(&repository->fastImport);
         s << "commit " << branchRef << endl;
+        s << "mark :" << QByteArray::number(++repository->lastmark) << endl;
+        repository->commitMarks.insert(revnum, repository->lastmark);
+        repository->exportedCommits.append(revnum);
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];

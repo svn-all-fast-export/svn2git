@@ -20,6 +20,7 @@
 
 #include <QHash>
 #include <QProcess>
+#include <QVector>
 
 #include "ruleparser.h"
 
@@ -84,6 +85,8 @@ private:
 
     QHash<QString, Branch> branches;
     QHash<QString, AnnotatedTag> annotatedTags;
+    QHash<int, int> commitMarks;
+    QVector<int> exportedCommits;
     QString name;
     QProcess fastImport;
     int commitCount;
