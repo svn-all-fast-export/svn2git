@@ -216,7 +216,8 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
     }
 
     if (path_p) {
-        QString prefix = svnprefix.replace(rule.rx, rule.prefix);
+        QString prefix = svnprefix;
+        prefix.replace(rule.rx, rule.prefix);
         *path_p = prefix + pathName.mid(svnprefix.length());
     }
 }
@@ -508,15 +509,31 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     svn_boolean_t is_dir;
     SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
     if (is_dir) {
-        if (path_from == NULL) {
-            // no, it's a new directory being added
-            // Git doesn't handle directories, so we don't either
-            //qDebug() << "   mkdir ignored:" << key;
-            return EXIT_SUCCESS;
-        }
-
         current += '/';
-        qDebug() << "   " << key << "was copied from" << path_from << "rev" << rev_from;
+        if (change->change_kind == svn_fs_path_change_modify ||
+            change->change_kind == svn_fs_path_change_add) {
+            if (path_from == NULL) {
+                // freshly added directory, or modified properties
+                // Git doesn't handle directories, so we don't either
+                //qDebug() << "   mkdir ignored:" << key;
+                return EXIT_SUCCESS;
+            }
+
+            qDebug() << "   " << key << "was copied from" << path_from << "rev" << rev_from;
+        } else if (change->change_kind == svn_fs_path_change_delete) {
+            qDebug() << "   " << key << "was deleted";
+        } else if (change->change_kind == svn_fs_path_change_replace) {
+            if (path_from == NULL)
+                qDebug() << "   " << key << "was replaced";
+            else
+                qDebug() << "   " << key << "was replaced from" << path_from << "rev" << rev_from;
+        } else if (change->change_kind == svn_fs_path_change_reset) {
+            qCritical() << "   " << key << "was reset, panic!";
+            return EXIT_FAILURE;
+        } else {
+            qCritical() << "   " << key << "has unhandled change kind " << change->change_kind << ", panic!";
+            return EXIT_FAILURE;
+        }
     }
 
     // find the first rule that matches this pathname
@@ -646,6 +663,8 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         transactions.insert(repository + branch, txn);
     }
 
+    if (change->change_kind == svn_fs_path_change_replace && path_from == NULL)
+        txn->deleteFile(path);
     if (change->change_kind == svn_fs_path_change_delete) {
         txn->deleteFile(path);
     } else if (!current.endsWith('/')) {
