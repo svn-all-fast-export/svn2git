@@ -148,6 +148,7 @@ void Repository::createBranch(const QString &branch, int revnum,
     if(commitMarks.contains(closestCommit))
     {
         branchFromRef = ":" + QByteArray::number(commitMarks.value(closestCommit));
+        qDebug() << "branching from" << closestCommit << "(svn reports r" << branchRevNum << ")";
     } else {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
                 << "creating an empty branch.";
