@@ -270,6 +270,11 @@ void Repository::startFastImport()
         processHasStarted = true;
 
         // start the process
+        QString marksFile = name;
+        marksFile.replace('/', '_');
+        marksFile.prepend("marks-");
+        QStringList marksOptions;
+        marksOptions << "--export-marks=" + marksFile;
         QString outputFile = name;
         outputFile.replace('/', '_');
         outputFile.prepend("log-");
@@ -277,7 +282,7 @@ void Repository::startFastImport()
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
         if (!CommandLineParser::instance()->contains("dry-run")) {
-            fastImport.start("git", QStringList() << "fast-import");
+            fastImport.start("git", QStringList() << "fast-import" << marksOptions);
         } else {
             fastImport.start("/bin/cat", QStringList());
         }
