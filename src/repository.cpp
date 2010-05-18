@@ -97,6 +97,19 @@ void Repository::closeFastImport()
     }
     processHasStarted = false;
     processCache.remove(this);
+    // Save the exported marks
+    QString revsFile = name;
+    revsFile.replace('/', '_');
+    revsFile.prepend("revisions-");
+    QFile exportedMarks(revsFile);
+    qDebug() << exportedMarks.open(QIODevice::Truncate | QIODevice::Text | QIODevice::WriteOnly);
+
+    int mark;
+    foreach(mark, exportedCommits)
+    {
+        exportedMarks.write(QString(":%2 r%1\n").arg(mark).arg(commitMarks.value(mark)).toLocal8Bit());
+    }
+    exportedMarks.close();
 }
 
 void Repository::reloadBranches()
