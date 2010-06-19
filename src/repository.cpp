@@ -151,17 +151,20 @@ void Repository::createBranch(const QString &branch, int revnum,
 
     // now create the branch
     br.created = revnum;
-    QByteArray branchFromRef;
-    const int closestCommit = *qLowerBound(exportedCommits, branchRevNum);
-    if(commitMarks.contains(closestCommit))
-    {
+    QByteArray branchFromRef, branchFromDesc;
+    QVector<const int>::iterator it = qUpperBound(exportedCommits, branchRevNum);
+    const int closestCommit = it == exportedCommits.begin() ? branchRevNum : *--it;
+
+    if(commitMarks.contains(closestCommit)) {
         branchFromRef = ":" + QByteArray::number(commitMarks.value(closestCommit));
+	branchFromDesc = branchFromRef + " (r" + QByteArray::number(closestCommit) + ")";
     } else {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
                 << "creating an empty branch.";
         branchFromRef = branchFrom.toUtf8();
         if (!branchFromRef.startsWith("refs/"))
             branchFromRef.prepend("refs/heads/");
+	branchFromDesc = branchFromRef;
     }
 
     if (!branches.contains(branchFrom) || !branches.value(branchFrom).created) {
@@ -173,7 +176,7 @@ void Repository::createBranch(const QString &branch, int revnum,
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
                      "progress Branch " + branchRef + " created from "
-                     + branchFromRef + " r" + QByteArray::number(branchRevNum) + "\n\n");
+                     + branchFromDesc + " r" + QByteArray::number(branchRevNum) + "\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
