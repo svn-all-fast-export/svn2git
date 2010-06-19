@@ -73,6 +73,12 @@ Repository::Repository(const Rules::Repository &rule)
             init.setWorkingDirectory(name);
             init.start("git", QStringList() << "--bare" << "init");
             init.waitForFinished(-1);
+	    QDir::current().mkpath(name + "/info/fast-import");
+	    {
+	        QFile marks(name + "/info/fast-import/marks");
+	        marks.open(QIODevice::WriteOnly);
+	        marks.close();
+	    }
         }
     }
 }
@@ -111,7 +117,9 @@ void Repository::reloadBranches()
             QByteArray branchName = revParse.readLine().trimmed();
 
             //qDebug() << "Repo" << name << "reloaded branch" << branchName;
-            branches[branchName].created = 1;
+
+	    Q_ASSERT(branches[branchName].created);
+
             fastImport.write("reset refs/heads/" + branchName +
                              "\nfrom refs/heads/" + branchName + "^0\n\n"
                              "progress Branch refs/heads/" + branchName + " reloaded\n");
@@ -276,7 +284,7 @@ void Repository::startFastImport()
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
         if (!CommandLineParser::instance()->contains("dry-run")) {
-            fastImport.start("git", QStringList() << "fast-import");
+	    fastImport.start("git", QStringList() << "fast-import" << "--relative-marks" << "--import-marks=marks" << "--export-marks=marks");
         } else {
             fastImport.start("/bin/cat", QStringList());
         }
