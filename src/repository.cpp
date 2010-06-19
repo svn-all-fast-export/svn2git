@@ -52,7 +52,7 @@ public:
 static ProcessCache processCache;
 
 Repository::Repository(const Rules::Repository &rule)
-    : name(rule.name), commitCount(0), outstandingTransactions(0), processHasStarted(false)
+  : name(rule.name), commitCount(0), outstandingTransactions(0),  lastmark(0), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
