@@ -3,7 +3,7 @@
 ######################################################################
 
 SVN_INCLUDE = /usr/include/subversion-1
-APR_INCLUDE = /usr/include/apr-1.0
+APR_INCLUDE = /usr/include/apr-1.0 /usr/include/apr-1
 exists(local-config.pri):include(local-config.pri)
 
 TEMPLATE = app
