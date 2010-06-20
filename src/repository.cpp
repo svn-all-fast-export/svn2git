@@ -166,7 +166,7 @@ void Repository::createBranch(const QString &branch, int revnum,
     if (branchRevNum == brFrom.commits.last()) {
         branchFromDesc = "from branch " + branchFrom.toUtf8();
     } else {
-        QVector<const int>::iterator it = qUpperBound(brFrom.commits, branchRevNum);
+        QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
         closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
 	branchFromDesc = "from branch " + branchFrom.toUtf8() + " at r" + QByteArray::number(branchRevNum);
 	if (closestCommit != branchRevNum)
