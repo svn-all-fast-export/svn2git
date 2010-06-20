@@ -140,7 +140,6 @@ void Repository::createBranch(const QString &branch, int revnum,
         if (!branchRef.startsWith("refs/"))
             branchRef.prepend("refs/heads/");
 
-
     Branch &br = branches[branch];
     if (br.created && br.created != revnum) {
         QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
@@ -149,15 +148,27 @@ void Repository::createBranch(const QString &branch, int revnum,
         fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
     }
 
+    Branch &brFrom = branches[branchFrom];
+    if (!brFrom.created) {
+        qCritical() << branch << "in repository" << name
+                    << "is branching from branch" << branchFrom
+                    << "but the latter doesn't exist. Can't continue.";
+        exit(1);
+    }
+
     // now create the branch
     br.created = revnum;
+    br.commits.append(revnum);
+
     QByteArray branchFromRef, branchFromDesc;
-    QVector<const int>::iterator it = qUpperBound(exportedCommits, branchRevNum);
-    const int closestCommit = it == exportedCommits.begin() ? branchRevNum : *--it;
+    QVector<const int>::iterator it = qUpperBound(brFrom.commits, branchRevNum);
+    const int closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
 
     if(commitMarks.contains(closestCommit)) {
-        branchFromRef = ":" + QByteArray::number(commitMarks.value(closestCommit));
+        int mark = commitMarks[closestCommit];
+        branchFromRef = ":" + QByteArray::number(mark);
 	branchFromDesc = branchFromRef + " (r" + QByteArray::number(closestCommit) + ")";
+	commitMarks[revnum] = mark;
     } else {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
                 << "creating an empty branch.";
@@ -165,13 +176,6 @@ void Repository::createBranch(const QString &branch, int revnum,
         if (!branchFromRef.startsWith("refs/"))
             branchFromRef.prepend("refs/heads/");
 	branchFromDesc = branchFromRef;
-    }
-
-    if (!branches.contains(branchFrom) || !branches.value(branchFrom).created) {
-        qCritical() << branch << "in repository" << name
-                    << "is branching from branch" << branchFrom
-                    << "but the latter doesn't exist. Can't continue.";
-        exit(1);
     }
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
@@ -369,7 +373,6 @@ void Repository::Transaction::commit()
         s << "commit " << branchRef << endl;
         s << "mark :" << QByteArray::number(++repository->lastmark) << endl;
         repository->commitMarks.insert(revnum, repository->lastmark);
-        repository->exportedCommits.append(revnum);
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
@@ -378,6 +381,7 @@ void Repository::Transaction::commit()
                        << revnum << "-- did you resume from the wrong revision?";
             br.created = revnum;
         }
+	br.commits.append(revnum);
 
         s << "data " << message.length() << endl;
     }
