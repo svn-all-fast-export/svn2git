@@ -161,13 +161,21 @@ void Repository::createBranch(const QString &branch, int revnum,
     br.commits.append(revnum);
 
     QByteArray branchFromRef, branchFromDesc;
-    QVector<const int>::iterator it = qUpperBound(brFrom.commits, branchRevNum);
-    const int closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
+
+    int closestCommit = branchRevNum;
+    if (branchRevNum == brFrom.commits.last()) {
+        branchFromDesc = "from branch " + branchFrom.toUtf8();
+    } else {
+        QVector<const int>::iterator it = qUpperBound(brFrom.commits, branchRevNum);
+        closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
+	branchFromDesc = "from branch " + branchFrom.toUtf8() + " at r" + QByteArray::number(branchRevNum);
+	if (closestCommit != branchRevNum)
+	    branchFromDesc += " => r" + QByteArray::number(closestCommit);
+    }
 
     if(commitMarks.contains(closestCommit)) {
         int mark = commitMarks[closestCommit];
         branchFromRef = ":" + QByteArray::number(mark);
-	branchFromDesc = branchFromRef + " (r" + QByteArray::number(closestCommit) + ")";
 	commitMarks[revnum] = mark;
     } else {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
@@ -175,12 +183,14 @@ void Repository::createBranch(const QString &branch, int revnum,
         branchFromRef = branchFrom.toUtf8();
         if (!branchFromRef.startsWith("refs/"))
             branchFromRef.prepend("refs/heads/");
-	branchFromDesc = branchFromRef;
+	branchFromDesc = "at unknown r" + QByteArray::number(branchRevNum);
     }
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
-                     "progress Branch " + branchRef + " created from "
-                     + branchFromDesc + " r" + QByteArray::number(branchRevNum) + "\n\n");
+		     "progress SVN r" + QByteArray::number(revnum)
+		     + " branch " + branch.toUtf8() + " = " + branchFromRef
+		     + " # " + branchFromDesc
+		     + "\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
@@ -357,6 +367,8 @@ void Repository::Transaction::commit()
 {
     processCache.touch(repository);
 
+    int mark = ++repository->lastmark;
+
     // create the commit message
     QByteArray message = log;
     if (!message.endsWith('\n'))
@@ -371,8 +383,8 @@ void Repository::Transaction::commit()
 
         QTextStream s(&repository->fastImport);
         s << "commit " << branchRef << endl;
-        s << "mark :" << QByteArray::number(++repository->lastmark) << endl;
-        repository->commitMarks.insert(revnum, repository->lastmark);
+        s << "mark :" << QByteArray::number(mark) << endl;
+        repository->commitMarks.insert(revnum, mark);
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
@@ -399,10 +411,10 @@ void Repository::Transaction::commit()
     // write the file modifications
     repository->fastImport.write(modifiedFiles);
 
-    repository->fastImport.write("\nprogress Commit #" +
-                                 QByteArray::number(repository->commitCount) +
-                                 " branch " + branch +
-                                 " = SVN r" + QByteArray::number(revnum) + "\n\n");
+    repository->fastImport.write("\nprogress SVN r" + QByteArray::number(revnum)
+                                 + " branch " + branch + " = :" + QByteArray::number(mark)
+				 /*+ " # Commit #" + QByteArray::number(repository->commitCount)*/
+				 + "\n\n");
     printf(" %d modifications from SVN %s to %s/%s",
            deletedFiles.count() + modifiedFiles.count(), svnprefix.data(),
            qPrintable(repository->name), branch.data());
