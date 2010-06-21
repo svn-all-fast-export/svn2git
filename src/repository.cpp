@@ -301,7 +301,7 @@ void Repository::startFastImport()
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
         if (!CommandLineParser::instance()->contains("dry-run")) {
-	    fastImport.start("git", QStringList() << "fast-import" << "--relative-marks" << "--import-marks=marks" << "--export-marks=marks");
+	    fastImport.start("git", QStringList() << "fast-import" << "--relative-marks" << "--import-marks=marks" << "--export-marks=marks" << "--force");
         } else {
             fastImport.start("/bin/cat", QStringList());
         }
