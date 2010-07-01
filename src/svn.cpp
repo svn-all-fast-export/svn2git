@@ -615,19 +615,19 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                            << qPrintable(prevrepository) << "branch"
                            << qPrintable(prevbranch) << "path"
                            << qPrintable(prevpath) << "rev" << rev_from << ")";
-            } else if (prevbranch == branch) {
-                // same branch and same repository
-                qDebug() << qPrintable(current) << "rev" << revnum
-                         << "is an SVN rename from"
-                         << qPrintable(previous) << "rev" << rev_from;
-                return EXIT_SUCCESS;
             } else {
-                // same repository but not same branch
-                // this means this is a plain branch
-                qDebug() << qPrintable(repository) << ": branch"
-                         << qPrintable(branch) << "is branching from"
-                         << qPrintable(prevbranch);
-
+		if (prevbranch == branch) {
+		    // same branch and same repository
+		    qDebug() << qPrintable(current) << "rev" << revnum
+			     << "is an SVN rename from"
+			     << qPrintable(previous) << "rev" << rev_from;
+		} else {
+		    // same repository but not same branch
+		    // this means this is a plain branch
+		    qDebug() << qPrintable(repository) << ": branch"
+			     << qPrintable(branch) << "is branching from"
+			     << qPrintable(prevbranch);
+		}
                 Repository *repo = repositories.value(repository, 0);
                 if (!repo) {
                     qCritical() << "Rule" << rule
