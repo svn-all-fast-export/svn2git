@@ -670,15 +670,11 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
     //
     // If this path was copied from elsewhere, use it to infer _some_
-    // merge points.  However, if the copy was from earlier in the
-    // same branch, we ignore it, since it is unlikely to improve the
-    // quality of the history.
-    //
-    // This is totally a heuristic, but is fairly useful for tracking
+    // merge points.  This heuristic is fairly useful for tracking
     // changes across directory re-organizations and wholesale branch
     // imports.
     //
-    if (path_from != NULL && prevrepository == repository && prevbranch != branch)
+    if (path_from != NULL && prevrepository == repository)
 	txn->noteCopyFromBranch (prevbranch, rev_from);
 
     if (change->change_kind == svn_fs_path_change_replace && path_from == NULL)
