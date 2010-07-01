@@ -595,56 +595,61 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 //                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
 //                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
-    if (path.isEmpty() && path_from != NULL) {
-        QString previous = QString::fromUtf8(path_from) + '/';
+    QString previous;
+    QString prevsvnprefix, prevrepository, prevbranch, prevpath;
+
+    if (path_from != NULL) {
+	QString previous = QString::fromUtf8(path_from) + '/';
         MatchRuleList::ConstIterator prevmatch =
             findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
-        if (prevmatch != matchRules.constEnd()) {
-            QString prevsvnprefix, prevrepository, prevbranch, prevpath;
+        if (prevmatch != matchRules.constEnd())
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
                           &prevbranch, &prevpath);
+	else
+	    path_from = NULL;
+    }
 
-            if (!prevpath.isEmpty()) {
-                qDebug() << qPrintable(current) << "is a partial branch of repository"
-                         << qPrintable(prevrepository) << "branch"
-                         << qPrintable(prevbranch) << "subdir"
-                         << qPrintable(prevpath);
-            } else if (prevrepository != repository) {
-                qWarning() << qPrintable(current) << "rev" << revnum
-                           << "is a cross-repository copy (from repository"
-                           << qPrintable(prevrepository) << "branch"
-                           << qPrintable(prevbranch) << "path"
-                           << qPrintable(prevpath) << "rev" << rev_from << ")";
-            } else {
-		if (prevbranch == branch) {
-		    // same branch and same repository
-		    qDebug() << qPrintable(current) << "rev" << revnum
-			     << "is an SVN rename from"
-			     << qPrintable(previous) << "rev" << rev_from;
-		} else {
-		    // same repository but not same branch
-		    // this means this is a plain branch
-		    qDebug() << qPrintable(repository) << ": branch"
-			     << qPrintable(branch) << "is branching from"
-			     << qPrintable(prevbranch);
-		}
-                Repository *repo = repositories.value(repository, 0);
-                if (!repo) {
-                    qCritical() << "Rule" << rule
-                                << "references unknown repository" << repository;
-                    return EXIT_FAILURE;
-                }
+    if (path.isEmpty() && path_from != NULL) {
+	if (!prevpath.isEmpty()) {
+	    qDebug() << qPrintable(current) << "is a partial branch of repository"
+		     << qPrintable(prevrepository) << "branch"
+		     << qPrintable(prevbranch) << "subdir"
+		     << qPrintable(prevpath);
+	} else if (prevrepository != repository) {
+	    qWarning() << qPrintable(current) << "rev" << revnum
+		       << "is a cross-repository copy (from repository"
+		       << qPrintable(prevrepository) << "branch"
+		       << qPrintable(prevbranch) << "path"
+		       << qPrintable(prevpath) << "rev" << rev_from << ")";
+	} else {
+	    if (prevbranch == branch) {
+		// same branch and same repository
+		qDebug() << qPrintable(current) << "rev" << revnum
+			 << "is an SVN rename from"
+			 << qPrintable(previous) << "rev" << rev_from;
+	    } else {
+		// same repository but not same branch
+		// this means this is a plain branch
+		qDebug() << qPrintable(repository) << ": branch"
+			 << qPrintable(branch) << "is branching from"
+			 << qPrintable(prevbranch);
+	    }
+	    Repository *repo = repositories.value(repository, 0);
+	    if (!repo) {
+		qCritical() << "Rule" << rule
+			    << "references unknown repository" << repository;
+		return EXIT_FAILURE;
+	    }
 
-                repo->createBranch(branch, revnum, prevbranch, rev_from);
-                if (rule.annotate) {
-                    // create an annotated tag
-                    fetchRevProps();
-                    repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
-                                             epoch, log);
-                }
-                return EXIT_SUCCESS;
-            }
-        }
+	    repo->createBranch(branch, revnum, prevbranch, rev_from);
+	    if (rule.annotate) {
+		// create an annotated tag
+		fetchRevProps();
+		repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
+					 epoch, log);
+	    }
+	    return EXIT_SUCCESS;
+	}
     }
 
     Repository::Transaction *txn = transactions.value(repository + branch, 0);
@@ -662,6 +667,19 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
         transactions.insert(repository + branch, txn);
     }
+
+    //
+    // If this path was copied from elsewhere, use it to infer _some_
+    // merge points.  However, if the copy was from earlier in the
+    // same branch, we ignore it, since it is unlikely to improve the
+    // quality of the history.
+    //
+    // This is totally a heuristic, but is fairly useful for tracking
+    // changes across directory re-organizations and wholesale branch
+    // imports.
+    //
+    if (path_from != NULL && prevrepository == repository && prevbranch != branch)
+	txn->noteCopyFromBranch (prevbranch, rev_from);
 
     if (change->change_kind == svn_fs_path_change_replace && path_from == NULL)
         txn->deleteFile(path);

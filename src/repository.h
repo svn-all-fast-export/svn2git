@@ -40,6 +40,8 @@ public:
         uint datetime;
         int revnum;
 
+	QVector<int> merges;
+
         QStringList deletedFiles;
         QByteArray modifiedFiles;
 
@@ -51,6 +53,8 @@ public:
         void setAuthor(const QByteArray &author);
         void setDateTime(uint dt);
         void setLog(const QByteArray &log);
+
+	void noteCopyFromBranch (const QString &prevbranch, int revFrom);
 
         void deleteFile(const QString &path);
         QIODevice *addFile(const QString &path, int mode, qint64 length);

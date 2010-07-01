@@ -330,6 +330,34 @@ void Repository::Transaction::setLog(const QByteArray &l)
     log = l;
 }
 
+void Repository::Transaction::noteCopyFromBranch (const QString &branchFrom, int branchRevNum)
+{
+    Branch &brFrom = repository->branches[branchFrom];
+    if (!brFrom.created) {
+        qWarning() << branch << "is copying from branch" << branchFrom
+                    << "but the latter doesn't exist.  Continuing, assuming the files exist.";
+	return;
+    }
+
+    int closestCommit = branchRevNum;
+    if (branchRevNum != brFrom.commits.last()) {
+        QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
+        closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
+    }
+
+    if (!repository->commitMarks.contains(closestCommit)) {
+	qWarning() << "Unknown revision r" << QByteArray::number(closestCommit)
+		   << ".  Continuing, assuming the files exist.";
+	return;
+    }
+
+    qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
+
+    int mark = repository->commitMarks[closestCommit];
+    if (!merges.contains(mark))
+	merges.append(mark);
+}
+
 void Repository::Transaction::deleteFile(const QString &path)
 {
     QString pathNoSlash = path;
@@ -376,6 +404,17 @@ void Repository::Transaction::commit()
     if (CommandLineParser::instance()->contains("add-metadata"))
         message += "\nsvn path=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
 
+    int parentmark = 0;
+    Branch &br = repository->branches[branch];
+    if (br.created) {
+	parentmark = repository->commitMarks[br.commits.last()];
+    } else {
+	qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
+		   << revnum << "-- did you resume from the wrong revision?";
+	br.created = revnum;
+    }
+    br.commits.append(revnum);
+
     {
         QByteArray branchRef = branch;
         if (!branchRef.startsWith("refs/"))
@@ -387,19 +426,34 @@ void Repository::Transaction::commit()
         repository->commitMarks.insert(revnum, mark);
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
-        Branch &br = repository->branches[branch];
-        if (!br.created) {
-            qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
-                       << revnum << "-- did you resume from the wrong revision?";
-            br.created = revnum;
-        }
-	br.commits.append(revnum);
-
         s << "data " << message.length() << endl;
     }
 
     repository->fastImport.write(message);
     repository->fastImport.putChar('\n');
+
+    // note some of the inferred merges
+    QByteArray desc = "";
+    int i = 0;
+    foreach (int merge, merges) {
+	if (merge == parentmark)
+	    continue;
+
+	// FIXME: options:
+	//   (1) ignore the 15 merges limit
+	//   (2) don't emit more than 15 merges
+	//   (3) create another commit on branch to soak up additional parents
+	// we've chosen option (2) for now, since only artificial commits
+	// created by cvs2svn seem to have this issue
+	if (++i >= 16) {
+	    qWarning() << "too many merge parents";
+	    break;
+	}
+
+	QByteArray m = " :" + QByteArray::number(merge);
+	desc += m;
+	repository->fastImport.write("merge" + m + "\n");
+    }
 
     // write the file deletions
     if (deletedFiles.contains(""))
@@ -413,7 +467,7 @@ void Repository::Transaction::commit()
 
     repository->fastImport.write("\nprogress SVN r" + QByteArray::number(revnum)
                                  + " branch " + branch + " = :" + QByteArray::number(mark)
-				 /*+ " # Commit #" + QByteArray::number(repository->commitCount)*/
+				 + (desc.isEmpty() ? "" : " # merge from") + desc
 				 + "\n\n");
     printf(" %d modifications from SVN %s to %s/%s",
            deletedFiles.count() + modifiedFiles.count(), svnprefix.data(),
