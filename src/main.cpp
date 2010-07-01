@@ -131,15 +131,19 @@ int main(int argc, char **argv)
 
     if (max_rev < 1)
         max_rev = svn.youngestRevision();
-    for (int i = min_rev; i <= max_rev; ++i)
-        if (!svn.exportRevision(i))
+
+    bool errors = false;
+    for (int i = min_rev; i <= max_rev; ++i) {
+        if (!svn.exportRevision(i)) {
+	    errors = true;
             break;
+	}
+    }
 
     foreach (Repository *repo, repositories) {
         repo->finalizeTags();
         delete repo;
     }
 
-    // success
-    return 0;
+    return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
