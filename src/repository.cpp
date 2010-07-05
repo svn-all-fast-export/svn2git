@@ -434,18 +434,18 @@ void Repository::Transaction::commit()
 
     // note some of the inferred merges
     QByteArray desc = "";
-    int i = 0;
+    int i = !!parentmark;	// if parentmark != 0, there's at least one parent
     foreach (int merge, merges) {
 	if (merge == parentmark)
 	    continue;
 
-	// FIXME: options:
-	//   (1) ignore the 15 merges limit
-	//   (2) don't emit more than 15 merges
-	//   (3) create another commit on branch to soak up additional parents
-	// we've chosen option (2) for now, since only artificial commits
-	// created by cvs2svn seem to have this issue
-	if (++i >= 16) {
+	if (++i > 16) {
+	    // FIXME: options:
+	    //   (1) ignore the 16 parent limit
+	    //   (2) don't emit more than 16 parents
+	    //   (3) create another commit on branch to soak up additional parents
+	    // we've chosen option (2) for now, since only artificial commits
+	    // created by cvs2svn seem to have this issue
 	    qWarning() << "too many merge parents";
 	    break;
 	}
