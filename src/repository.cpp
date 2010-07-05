@@ -156,28 +156,28 @@ void Repository::createBranch(const QString &branch, int revnum,
         exit(1);
     }
 
+    int mark = 0;
+    QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
+    if (branchRevNum == brFrom.commits.last()) {
+	mark = brFrom.marks.last();
+    } else {
+        QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
+	if (it != brFrom.commits.begin()) {
+	    int closestCommit = *--it;
+	    mark = brFrom.marks[it - brFrom.commits.begin()];
+	    branchFromDesc += " at r" + QByteArray::number(branchRevNum);
+	    if (closestCommit != branchRevNum)
+		branchFromDesc += " => r" + QByteArray::number(closestCommit);
+	}
+    }
+
     // now create the branch
     br.created = revnum;
     br.commits.append(revnum);
+    br.marks.append(mark);
 
-    QByteArray branchFromRef, branchFromDesc;
-
-    int closestCommit = branchRevNum;
-    if (branchRevNum == brFrom.commits.last()) {
-        branchFromDesc = "from branch " + branchFrom.toUtf8();
-    } else {
-        QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
-        closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
-	branchFromDesc = "from branch " + branchFrom.toUtf8() + " at r" + QByteArray::number(branchRevNum);
-	if (closestCommit != branchRevNum)
-	    branchFromDesc += " => r" + QByteArray::number(closestCommit);
-    }
-
-    if(commitMarks.contains(closestCommit)) {
-        int mark = commitMarks[closestCommit];
-        branchFromRef = ":" + QByteArray::number(mark);
-	commitMarks[revnum] = mark;
-    } else {
+    QByteArray branchFromRef = ":" + QByteArray::number(mark);
+    if (!mark) {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
                 << "creating an empty branch.";
         branchFromRef = branchFrom.toUtf8();
@@ -339,21 +339,26 @@ void Repository::Transaction::noteCopyFromBranch (const QString &branchFrom, int
 	return;
     }
 
-    int closestCommit = branchRevNum;
-    if (branchRevNum != brFrom.commits.last()) {
+    int mark = 0;
+
+    if (branchRevNum == brFrom.commits.last()) {
+	mark = brFrom.marks.last();
+    } else {
         QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
-        closestCommit = it == brFrom.commits.begin() ? branchRevNum : *--it;
+	if (it != brFrom.commits.begin()) {
+	    --it;
+	    mark = brFrom.marks[it - brFrom.commits.begin()];
+	}
     }
 
-    if (!repository->commitMarks.contains(closestCommit)) {
-	qWarning() << "Unknown revision r" << QByteArray::number(closestCommit)
-		   << ".  Continuing, assuming the files exist.";
+    if (!mark) {
+	qWarning() << "Unknown revision r" << QByteArray::number(branchRevNum)
+		       << ".  Continuing, assuming the files exist.";
 	return;
     }
 
     qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
 
-    int mark = repository->commitMarks[closestCommit];
     if (!merges.contains(mark))
 	merges.append(mark);
 }
@@ -407,13 +412,14 @@ void Repository::Transaction::commit()
     int parentmark = 0;
     Branch &br = repository->branches[branch];
     if (br.created) {
-	parentmark = repository->commitMarks[br.commits.last()];
+	parentmark = br.marks.last();
     } else {
 	qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
 		   << revnum << "-- did you resume from the wrong revision?";
 	br.created = revnum;
     }
     br.commits.append(revnum);
+    br.marks.append(mark);
 
     {
         QByteArray branchRef = branch;
@@ -423,7 +429,6 @@ void Repository::Transaction::commit()
         QTextStream s(&repository->fastImport);
         s << "commit " << branchRef << endl;
         s << "mark :" << QByteArray::number(mark) << endl;
-        repository->commitMarks.insert(revnum, mark);
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         s << "data " << message.length() << endl;

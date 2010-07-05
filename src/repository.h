@@ -77,6 +77,7 @@ private:
     {
         int created;
         QVector<int> commits;
+	QVector<int> marks;
     };
     struct AnnotatedTag
     {
@@ -90,7 +91,6 @@ private:
 
     QHash<QString, Branch> branches;
     QHash<QString, AnnotatedTag> annotatedTags;
-    QHash<int, int> commitMarks;
     QString name;
     QProcess fastImport;
     int commitCount;
