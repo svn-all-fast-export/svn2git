@@ -141,7 +141,7 @@ void Repository::createBranch(const QString &branch, int revnum,
             branchRef.prepend("refs/heads/");
 
     Branch &br = branches[branch];
-    if (br.created && br.created != revnum) {
+    if (br.created && br.created != revnum && br.marks.last()) {
         QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
         qWarning() << branch << "already exists; backing up to" << backupBranch;
 
@@ -191,6 +191,30 @@ void Repository::createBranch(const QString &branch, int revnum,
 		     + " branch " + branch.toUtf8() + " = " + branchFromRef
 		     + " # " + branchFromDesc
 		     + "\n\n");
+}
+
+void Repository::deleteBranch(const QString &branch, int revnum)
+{
+    QByteArray branchRef = branch.toUtf8();
+    if (!branchRef.startsWith("refs/"))
+	branchRef.prepend("refs/heads/");
+
+    Branch &br = branches[branch];
+    if (br.created && br.created != revnum && br.marks.last()) {
+        QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
+        qWarning() << "backing up branch" << branch << "to" << backupBranch;
+
+        fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
+    }
+
+    br.created = revnum;
+    br.commits.append(revnum);
+    br.marks.append(0);
+
+    static QByteArray null_sha(40, '0');
+    fastImport.write("reset " + branchRef + "\nfrom " + null_sha + "\n\n"
+		     "progress SVN r" + QByteArray::number(revnum)
+		     + " branch " + branch.toUtf8() + " = :0 # delete\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,

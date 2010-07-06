@@ -65,6 +65,7 @@ public:
     void reloadBranches();
     void createBranch(const QString &branch, int revnum,
                       const QString &branchFrom, int revFrom);
+    void deleteBranch(const QString &branch, int revnum);
     Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
 
     void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,

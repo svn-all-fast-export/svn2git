@@ -509,7 +509,6 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     svn_boolean_t is_dir;
     SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
     if (is_dir) {
-        current += '/';
         if (change->change_kind == svn_fs_path_change_modify ||
             change->change_kind == svn_fs_path_change_add) {
             if (path_from == NULL) {
@@ -520,8 +519,6 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
             }
 
             qDebug() << "   " << key << "was copied from" << path_from << "rev" << rev_from;
-        } else if (change->change_kind == svn_fs_path_change_delete) {
-            qDebug() << "   " << key << "was deleted";
         } else if (change->change_kind == svn_fs_path_change_replace) {
             if (path_from == NULL)
                 qDebug() << "   " << key << "was replaced";
@@ -531,10 +528,16 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
             qCritical() << "   " << key << "was reset, panic!";
             return EXIT_FAILURE;
         } else {
+	    // if change_kind == delete, it shouldn't come into this arm of the 'is_dir' test
             qCritical() << "   " << key << "has unhandled change kind " << change->change_kind << ", panic!";
             return EXIT_FAILURE;
         }
+    } else if (change->change_kind == svn_fs_path_change_delete) {
+	is_dir = wasDir(fs, revnum - 1, key, revpool);
     }
+
+    if (is_dir)
+	current += '/';
 
     // find the first rule that matches this pathname
     MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
@@ -546,6 +549,9 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     if (is_dir && path_from != NULL) {
         qDebug() << current << "is a copy-with-history, auto-recursing";
         return recurse(key, change, path_from, rev_from, changes, revpool);
+    } else if (is_dir && change->change_kind == svn_fs_path_change_delete) {
+	qDebug() << current << "deleted, auto-recursing";
+	return recurse(key, change, path_from, rev_from, changes, revpool);
     } else if (wasDir(fs, revnum - 1, key, revpool)) {
         qDebug() << current << "was a directory; ignoring";
     } else if (change->change_kind == svn_fs_path_change_delete) {
@@ -576,7 +582,14 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
         return recurse(key, change, path_from, rev_from, changes, pool);
 
     case Rules::Match::Export:
-        return exportInternal(key, change, path_from, rev_from, current, rule);
+        if (exportInternal(key, change, path_from, rev_from, current, rule) == EXIT_SUCCESS)
+	    return EXIT_SUCCESS;
+	if (change->change_kind != svn_fs_path_change_delete)
+	    return EXIT_FAILURE;
+	// we know that the default action inside recurse is to recurse further or to ignore,
+	// either of which is reasonably safe for deletion
+	qWarning() << "deleting unknown path" << current << "; auto-recursing";
+	return recurse(key, change, path_from, rev_from, changes, pool);
     }
 
     // never reached
@@ -590,16 +603,30 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     QString svnprefix, repository, branch, path;
     splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
 
+    Repository *repo = repositories.value(repository, 0);
+    if (!repo) {
+	if (change->change_kind != svn_fs_path_change_delete)
+	    qCritical() << "Rule" << rule
+			<< "references unknown repository" << repository;
+	return EXIT_FAILURE;
+    }
+
     printf(".");
     fflush(stdout);
 //                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
 //                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
+    if (change->change_kind == svn_fs_path_change_delete && current == svnprefix) {
+	qDebug() << "repository" << repository << "branch" << branch << "deleted";
+	repo->deleteBranch(branch, revnum);
+	return EXIT_SUCCESS;
+    }
+
     QString previous;
     QString prevsvnprefix, prevrepository, prevbranch, prevpath;
 
     if (path_from != NULL) {
-	QString previous = QString::fromUtf8(path_from) + '/';
+	previous = QString::fromUtf8(path_from) + '/';
         MatchRuleList::ConstIterator prevmatch =
             findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
         if (prevmatch != matchRules.constEnd())
@@ -634,12 +661,6 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 			 << qPrintable(branch) << "is branching from"
 			 << qPrintable(prevbranch);
 	    }
-	    Repository *repo = repositories.value(repository, 0);
-	    if (!repo) {
-		qCritical() << "Rule" << rule
-			    << "references unknown repository" << repository;
-		return EXIT_FAILURE;
-	    }
 
 	    repo->createBranch(branch, revnum, prevbranch, rev_from);
 	    if (rule.annotate) {
@@ -651,16 +672,8 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 	    return EXIT_SUCCESS;
 	}
     }
-
     Repository::Transaction *txn = transactions.value(repository + branch, 0);
     if (!txn) {
-        Repository *repo = repositories.value(repository, 0);
-        if (!repo) {
-            qCritical() << "Rule" << rule
-                        << "references unknown repository" << repository;
-            return EXIT_FAILURE;
-        }
-
         txn = repo->newTransaction(branch, svnprefix, revnum);
         if (!txn)
             return EXIT_FAILURE;
@@ -695,6 +708,10 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
                          const char *path_from, svn_revnum_t rev_from,
                          apr_hash_t *changes, apr_pool_t *pool)
 {
+    svn_fs_root_t *fs_root = this->fs_root;
+    if (change->change_kind == svn_fs_path_change_delete)
+	SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum - 1, pool));
+
     // get the dir listing
     apr_hash_t *entries;
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, path, pool));
@@ -735,9 +752,11 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
                                rev_from, changes, current, *match, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else {
-            qCritical() << current << "rev" << revnum
-                        << "did not match any rules; cannot continue";
-            return EXIT_FAILURE;
+            qDebug() << current << "rev" << revnum
+		     << "did not match any rules; auto-recursing";
+	    if (recurse(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
+			rev_from, changes, dirpool) == EXIT_FAILURE)
+		return EXIT_FAILURE;
         }
     }
 
