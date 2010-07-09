@@ -257,6 +257,7 @@ void Repository::createBranch(const QString &branch, int revnum,
 
 void Repository::deleteBranch(const QString &branch, int revnum)
 {
+    startFastImport();
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
 	branchRef.prepend("refs/heads/");
