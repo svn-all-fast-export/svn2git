@@ -60,6 +60,7 @@ public:
         QIODevice *addFile(const QString &path, int mode, qint64 length);
     };
     Repository(const Rules::Repository &rule);
+    int setupIncremental(int resume_from);
     ~Repository();
 
     void reloadBranches();

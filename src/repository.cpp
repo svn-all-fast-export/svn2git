@@ -83,6 +83,72 @@ Repository::Repository(const Rules::Repository &rule)
     }
 }
 
+static QString logFileName(QString name)
+{
+    name.replace('/', '_');
+    name.prepend("log-");
+    return name;
+}
+
+int Repository::setupIncremental(int resume_from)
+{
+    QFile logfile(logFileName(name));
+    if (!logfile.exists())
+        return 1;
+
+    logfile.open(QIODevice::ReadWrite);
+
+    QRegExp progress("progress SVN r(\\d+) branch (.*) = :(\\d+)");
+
+    int last_revnum = 0;
+
+    while (!logfile.atEnd()) {
+        qint64 pos = logfile.pos();
+        QByteArray line = logfile.readLine();
+        int hash = line.indexOf('#');
+        if (hash != -1)
+            line.truncate(hash);
+        line = line.trimmed();
+        if (line.isEmpty())
+            continue;
+        if (!progress.exactMatch(line))
+            continue;
+
+        int revnum = progress.cap(1).toInt();
+        QString branch = progress.cap(2);
+        int mark = progress.cap(3).toInt();
+
+        if (resume_from && revnum >= resume_from) {
+            // backup file, since we'll truncate
+            QString bkup = logfile.fileName() + ".old";
+            QFile::remove(bkup);
+            logfile.copy(bkup);
+
+            // truncate, so that we ignore the rest of the revisions
+            logfile.resize(pos);
+            return resume_from;
+        }
+
+        if (revnum < last_revnum)
+            qWarning() << name << "revision numbers are not monotonic: "
+                       << "got" << QString::number(last_revnum)
+                       << "and then" << QString::number(revnum);
+
+        last_revnum = revnum;
+
+	if (lastmark < mark)
+	    lastmark = mark;
+
+        Branch &br = branches[branch];
+        if (!br.created || !mark || !br.marks.last())
+            br.created = revnum;
+        br.commits.append(revnum);
+        br.marks.append(mark);
+    }
+
+    return last_revnum + 1;
+}
+
 Repository::~Repository()
 {
     Q_ASSERT(outstandingTransactions == 0);
@@ -107,23 +173,19 @@ void Repository::closeFastImport()
 
 void Repository::reloadBranches()
 {
-    QProcess revParse;
-    revParse.setWorkingDirectory(name);
-    revParse.start("git", QStringList() << "rev-parse" << "--symbolic" << "--branches");
-    revParse.waitForFinished(-1);
+    foreach (QString branch, branches.keys()) {
+        Branch &br = branches[branch];
 
-    if (revParse.exitCode() == 0 && revParse.bytesAvailable()) {
-        while (revParse.canReadLine()) {
-            QByteArray branchName = revParse.readLine().trimmed();
+        if (!br.marks.count() || !br.marks.last())
+	    continue;
 
-            //qDebug() << "Repo" << name << "reloaded branch" << branchName;
+        QByteArray branchRef = branch.toUtf8();
+        if (!branchRef.startsWith("refs/"))
+            branchRef.prepend("refs/heads/");
 
-	    Q_ASSERT(branches[branchName].created);
-
-            fastImport.write("reset refs/heads/" + branchName +
-                             "\nfrom refs/heads/" + branchName + "^0\n\n"
-                             "progress Branch refs/heads/" + branchName + " reloaded\n");
-        }
+	fastImport.write("reset " + branchRef +
+			 "\nfrom :" + QByteArray::number(br.marks.last()) + "\n\n"
+			 "progress Branch " + branchRef + " reloaded\n");
     }
 }
 
@@ -318,10 +380,7 @@ void Repository::startFastImport()
         processHasStarted = true;
 
         // start the process
-        QString outputFile = name;
-        outputFile.replace('/', '_');
-        outputFile.prepend("log-");
-        fastImport.setStandardOutputFile(outputFile, QIODevice::Append);
+        fastImport.setStandardOutputFile(logFileName(name), QIODevice::Append);
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
         if (!CommandLineParser::instance()->contains("dry-run")) {

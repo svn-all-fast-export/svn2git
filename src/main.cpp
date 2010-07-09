@@ -70,6 +70,7 @@ static const CommandLineOption options[] = {
     {"--dry-run", "don't actually write anything"},
     {"--debug-rules", "print what rule is being used for each file"},
     {"--commit-interval NUMBER", "if passed the cache will be flushed to git every NUMBER of commits"},
+    {"--incremental", "attempts to restart an import based on information in log-* and git-fast-import"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},
     CommandLineLastOption
@@ -111,17 +112,27 @@ int main(int argc, char **argv)
     Rules rules(args->optionArgument(QLatin1String("rules")));
     rules.load();
 
-    int min_rev = args->optionArgument(QLatin1String("resume-from")).toInt();
+    int resume_from = args->optionArgument(QLatin1String("resume-from")).toInt();
     int max_rev = args->optionArgument(QLatin1String("max-rev")).toInt();
-    if (min_rev < 1)
-        min_rev = 1;
 
     // create the repository list
     QHash<QString, Repository *> repositories;
+    bool incremental = args->contains("incremental");
+
+    int min_rev = resume_from;
     foreach (Rules::Repository rule, rules.repositories()) {
         Repository *repo = new Repository(rule);
         repositories.insert(rule.name, repo);
+
+	if (incremental) {
+	    int repo_next = repo->setupIncremental(resume_from);
+	    if (min_rev < repo_next)
+		min_rev = repo_next;
+	}
     }
+
+    if (min_rev < 1)
+        min_rev = 1;
 
     Svn::initialize();
     Svn svn(args->arguments().first());
