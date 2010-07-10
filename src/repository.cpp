@@ -25,6 +25,8 @@
 
 static const int maxSimultaneousProcesses = 100;
 
+static const int maxMark = (1 << 20) - 1; // some versions of git-fast-import are buggy for larger values of maxMark
+
 class ProcessCache: QLinkedList<Repository *>
 {
 public:
@@ -52,7 +54,7 @@ public:
 static ProcessCache processCache;
 
 Repository::Repository(const Rules::Repository &rule)
-  : name(rule.name), commitCount(0), outstandingTransactions(0),  lastmark(0), processHasStarted(false)
+    : name(rule.name), commitCount(0), outstandingTransactions(0),  last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
@@ -136,8 +138,8 @@ int Repository::setupIncremental(int resume_from)
 
         last_revnum = revnum;
 
-	if (lastmark < mark)
-	    lastmark = mark;
+	if (last_commit_mark < mark)
+	    last_commit_mark = mark;
 
         Branch &br = branches[branch];
         if (!br.created || !mark || !br.marks.last())
@@ -303,6 +305,12 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     return txn;
 }
 
+void Repository::forgetTransaction(Transaction *)
+{
+    if (!--outstandingTransactions)
+	next_file_mark = maxMark;
+}
+
 void Repository::createAnnotatedTag(const QString &ref, const QString &svnprefix,
                                     int revnum,
                                     const QByteArray &author, uint dt,
@@ -396,7 +404,7 @@ void Repository::startFastImport()
 
 Repository::Transaction::~Transaction()
 {
-    --repository->outstandingTransactions;
+    repository->forgetTransaction(this);
 }
 
 void Repository::Transaction::setAuthor(const QByteArray &a)
@@ -457,7 +465,10 @@ void Repository::Transaction::deleteFile(const QString &path)
 
 QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint64 length)
 {
-    int mark = ++repository->lastmark;
+    int mark = repository->next_file_mark--;
+
+    // in case the two mark allocations meet, we might as well just abort
+    Q_ASSERT(mark > repository->last_commit_mark + 1);
 
     if (modifiedFiles.capacity() == 0)
         modifiedFiles.reserve(2048);
@@ -484,7 +495,13 @@ void Repository::Transaction::commit()
 {
     processCache.touch(repository);
 
-    int mark = ++repository->lastmark;
+    // We might be tempted to use the SVN revision number as the fast-import commit mark.
+    // However, a single SVN revision can modify multple branches, and thus lead to multiple
+    // commits in the same repo.  So, we need to maintain a separate commit mark counter.
+    int mark = ++repository->last_commit_mark;
+
+    // in case the two mark allocations meet, we might as well just abort
+    Q_ASSERT(mark < repository->next_file_mark - 1);
 
     // create the commit message
     QByteArray message = log;

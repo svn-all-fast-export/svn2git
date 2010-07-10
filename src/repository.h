@@ -97,11 +97,20 @@ private:
     QProcess fastImport;
     int commitCount;
     int outstandingTransactions;
-    int lastmark;
+
+    /* starts at 0, and counts up.  */
+    int last_commit_mark;
+
+    /* starts at maxMark and counts down. Reset after each SVN revision */
+    int next_file_mark;
+
     bool processHasStarted;
 
     void startFastImport();
     void closeFastImport();
+
+    // called when a transaction is deleted
+    void forgetTransaction(Transaction *t);
 
     friend class ProcessCache;
     Q_DISABLE_COPY(Repository)
