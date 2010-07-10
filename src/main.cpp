@@ -19,7 +19,9 @@
 #include <QFile>
 #include <QStringList>
 #include <QTextStream>
+#include <QDebug>
 
+#include <limits.h>
 #include <stdio.h>
 
 #include "CommandLineParser.h"
@@ -119,16 +121,32 @@ int main(int argc, char **argv)
     QHash<QString, Repository *> repositories;
     bool incremental = args->contains("incremental");
 
-    int min_rev = resume_from;
+    int cutoff = resume_from ? resume_from : INT_MAX;
+ retry:
+    int min_rev = 0;
     foreach (Rules::Repository rule, rules.repositories()) {
         Repository *repo = new Repository(rule);
         repositories.insert(rule.name, repo);
 
 	if (incremental) {
-	    int repo_next = repo->setupIncremental(resume_from);
+	    int repo_next = repo->setupIncremental(cutoff);
+	    if (cutoff < min_rev) {
+		qWarning() << "rewinding; did you hit Ctrl-C?";
+		goto retry;
+	    }
 	    if (min_rev < repo_next)
 		min_rev = repo_next;
 	}
+    }
+
+    if (incremental && resume_from) {
+	if (cutoff < resume_from) {
+	    qCritical() << "Cannot resume from" << resume_from << "as there are errors in revision" << cutoff;
+	    return EXIT_FAILURE;
+	}
+	if (min_rev < resume_from)
+	    qDebug() << "skipping revisions" << min_rev << "to" << resume_from - 1 << "as requested";
+	min_rev = resume_from;
     }
 
     if (min_rev < 1)

@@ -92,7 +92,55 @@ static QString logFileName(QString name)
     return name;
 }
 
-int Repository::setupIncremental(int resume_from)
+static int lastValidMark(QString name)
+{
+    QFile marksfile(name + "/info/fast-import/marks");
+    if (!marksfile.open(QIODevice::ReadOnly))
+	return 0;
+
+    int prev_mark = 0;
+
+    int lineno = 0;
+    while (!marksfile.atEnd()) {
+	QString line = marksfile.readLine();
+	++lineno;
+	if (line.isEmpty())
+	    continue;
+
+	int mark = 0;
+	if (line[0] == ':') {
+	    int sp = line.indexOf(' ');
+	    if (sp != -1) {
+		QString m = line.mid(1, sp-1);
+		mark = m.toInt();
+	    }
+	}
+
+	if (!mark) {
+	    qCritical() << marksfile.fileName() << "line" << lineno << "marks file corrupt?";
+	    return 0;
+	}
+
+	if (mark == prev_mark) {
+	    qCritical() << marksfile.fileName() << "line" << lineno << "marks file has duplicates";
+	    return 0;
+	}
+
+	if (mark < prev_mark) {
+	    qCritical() << marksfile.fileName() << "line" << lineno << "marks file not sorted";
+	    return 0;
+	}
+
+	if (mark > prev_mark + 1)
+	    break;
+
+	prev_mark = mark;
+    }
+
+    return prev_mark;
+}
+
+int Repository::setupIncremental(int &cutoff)
 {
     QFile logfile(logFileName(name));
     if (!logfile.exists())
@@ -102,10 +150,13 @@ int Repository::setupIncremental(int resume_from)
 
     QRegExp progress("progress SVN r(\\d+) branch (.*) = :(\\d+)");
 
+    int last_valid_mark = lastValidMark(name);
+
     int last_revnum = 0;
+    qint64 pos = 0;
 
     while (!logfile.atEnd()) {
-        qint64 pos = logfile.pos();
+        pos = logfile.pos();
         QByteArray line = logfile.readLine();
         int hash = line.indexOf('#');
         if (hash != -1)
@@ -120,21 +171,20 @@ int Repository::setupIncremental(int resume_from)
         QString branch = progress.cap(2);
         int mark = progress.cap(3).toInt();
 
-        if (resume_from && revnum >= resume_from) {
-            // backup file, since we'll truncate
-            QString bkup = logfile.fileName() + ".old";
-            QFile::remove(bkup);
-            logfile.copy(bkup);
-
-            // truncate, so that we ignore the rest of the revisions
-            logfile.resize(pos);
-            return resume_from;
-        }
+        if (revnum >= cutoff)
+	    goto beyond_cutoff;
 
         if (revnum < last_revnum)
             qWarning() << name << "revision numbers are not monotonic: "
                        << "got" << QString::number(last_revnum)
                        << "and then" << QString::number(revnum);
+
+
+	if (mark > last_valid_mark) {
+	    qWarning() << name << "unknown commit mark found: rewinding";
+	    cutoff = revnum;
+	    goto beyond_cutoff;
+	}
 
         last_revnum = revnum;
 
@@ -149,6 +199,17 @@ int Repository::setupIncremental(int resume_from)
     }
 
     return last_revnum + 1;
+
+  beyond_cutoff:
+    // backup file, since we'll truncate
+    QString bkup = logfile.fileName() + ".old";
+    QFile::remove(bkup);
+    logfile.copy(bkup);
+
+    // truncate, so that we ignore the rest of the revisions
+    qDebug() << name << "truncating history to" << cutoff;
+    logfile.resize(pos);
+    return cutoff;
 }
 
 Repository::~Repository()
