@@ -636,8 +636,10 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 	    path_from = NULL;
     }
 
-    if (path.isEmpty() && path_from != NULL) {
-	if (!prevpath.isEmpty()) {
+    // current == svnprefix => we're dealing with the contents of the whole branch here
+    if (path_from != NULL && current == svnprefix) {
+	if (previous != prevsvnprefix) {
+	    // source is not the whole of its branch
 	    qDebug() << qPrintable(current) << "is a partial branch of repository"
 		     << qPrintable(prevrepository) << "branch"
 		     << qPrintable(prevbranch) << "subdir"
@@ -648,11 +650,18 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 		       << qPrintable(prevrepository) << "branch"
 		       << qPrintable(prevbranch) << "path"
 		       << qPrintable(prevpath) << "rev" << rev_from << ")";
+	} else if (path != prevpath) {
+	    qDebug() << qPrintable(current)
+		     << "is a branch copy which renames base directory of all contents"
+		     << qPrintable(prevpath) << "to" << qPrintable(path);
+	    // FIXME: Handle with fast-import 'file rename' facility
+	    //        ??? Might need special handling when path == / or prevpath == /
 	} else {
 	    if (prevbranch == branch) {
 		// same branch and same repository
 		qDebug() << qPrintable(current) << "rev" << revnum
-			 << "is an SVN rename from"
+			 << "is reseating branch" << qPrintable(branch)
+			 << "to an earlier revision"
 			 << qPrintable(previous) << "rev" << rev_from;
 	    } else {
 		// same repository but not same branch
