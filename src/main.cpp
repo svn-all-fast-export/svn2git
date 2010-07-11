@@ -123,34 +123,50 @@ int main(int argc, char **argv)
 
     int cutoff = resume_from ? resume_from : INT_MAX;
  retry:
-    int min_rev = 0;
+    int min_rev = 1;
     foreach (Rules::Repository rule, rules.repositories()) {
         Repository *repo = new Repository(rule);
         repositories.insert(rule.name, repo);
 
 	if (incremental) {
 	    int repo_next = repo->setupIncremental(cutoff);
-	    if (cutoff < min_rev) {
-		qWarning() << "rewinding; did you hit Ctrl-C?";
+
+	    /*
+	     * cutoff < resume_from => error exit eventually
+	     * repo_next == cutoff => probably truncated log
+	     */
+	    if (cutoff < resume_from && repo_next == cutoff)
+		/*
+		 * Restore the log file so we fail the next time
+		 * svn2git is invoked with the same arguments
+		 */
+		repo->restoreLog();
+
+	    if (cutoff < min_rev)
+		/*
+		 * We've rewound before the last revision of some
+		 * repository that we've already seen.  Start over
+		 * from the beginning.  (since cutoff is decreasing,
+		 * we're sure we'll make forward progress eventually)
+		 */
 		goto retry;
-	    }
+
 	    if (min_rev < repo_next)
 		min_rev = repo_next;
 	}
     }
 
-    if (incremental && resume_from) {
-	if (cutoff < resume_from) {
-	    qCritical() << "Cannot resume from" << resume_from << "as there are errors in revision" << cutoff;
-	    return EXIT_FAILURE;
-	}
-	if (min_rev < resume_from)
-	    qDebug() << "skipping revisions" << min_rev << "to" << resume_from - 1 << "as requested";
-	min_rev = resume_from;
+    if (cutoff < resume_from) {
+	qCritical() << "Cannot resume from" << resume_from
+		    << "as there are errors in revision" << cutoff;
+	return EXIT_FAILURE;
     }
 
-    if (min_rev < 1)
-        min_rev = 1;
+    if (min_rev < resume_from)
+	qDebug() << "skipping revisions" << min_rev << "to" << resume_from - 1 << "as requested";
+
+    if (resume_from)
+	min_rev = resume_from;
 
     Svn::initialize();
     Svn svn(args->arguments().first());

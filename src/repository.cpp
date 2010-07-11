@@ -154,6 +154,8 @@ int Repository::setupIncremental(int &cutoff)
 
     int last_revnum = 0;
     qint64 pos = 0;
+    int retval = 0;
+    QString bkup = logfile.fileName() + ".old";
 
     while (!logfile.atEnd()) {
         pos = logfile.pos();
@@ -179,9 +181,8 @@ int Repository::setupIncremental(int &cutoff)
                        << "got" << QString::number(last_revnum)
                        << "and then" << QString::number(revnum);
 
-
 	if (mark > last_valid_mark) {
-	    qWarning() << name << "unknown commit mark found: rewinding";
+	    qWarning() << name << "unknown commit mark found: rewinding -- did you hit Ctrl-C?";
 	    cutoff = revnum;
 	    goto beyond_cutoff;
 	}
@@ -198,18 +199,35 @@ int Repository::setupIncremental(int &cutoff)
         br.marks.append(mark);
     }
 
-    return last_revnum + 1;
+    retval = last_revnum + 1;
+    if (retval == cutoff)
+	/*
+	 * If a stale backup file exists already, remove it, so that
+	 * we don't confuse ourselves in 'restoreLog()'
+	 */
+	QFile::remove(bkup);
+
+    return retval;
 
   beyond_cutoff:
     // backup file, since we'll truncate
-    QString bkup = logfile.fileName() + ".old";
     QFile::remove(bkup);
     logfile.copy(bkup);
 
     // truncate, so that we ignore the rest of the revisions
-    qDebug() << name << "truncating history to" << cutoff;
+    qDebug() << name << "truncating history to revision" << cutoff;
     logfile.resize(pos);
     return cutoff;
+}
+
+void Repository::restoreLog()
+{
+    QString file = logFileName(name);
+    QString bkup = file + ".old";
+    if (!QFile::exists(bkup))
+	return;
+    QFile::remove(file);
+    QFile::rename(bkup, file);
 }
 
 Repository::~Repository()

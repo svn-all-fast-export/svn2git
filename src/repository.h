@@ -61,6 +61,7 @@ public:
     };
     Repository(const Rules::Repository &rule);
     int setupIncremental(int &cutoff);
+    void restoreLog();
     ~Repository();
 
     void reloadBranches();
