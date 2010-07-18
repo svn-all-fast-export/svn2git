@@ -72,8 +72,9 @@ Repository::Repository(const Rules::Repository &rule)
         branches.insert(branchRule.name, branch);
     }
 
-    // create the default branch
-    branches["master"].created = 1;
+    // create the default branch if no branches were manually specified
+    if (rule.branches.length() == 0)
+        branches["master"].created = 1;
 
     fastImport.setWorkingDirectory(name);
     if (!CommandLineParser::instance()->contains("dry-run")) {
