@@ -67,7 +67,7 @@ Repository::Repository(const Rules::Repository &rule)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
-        branch.created = 0;     // not created
+        branch.created = 1;
 
         branches.insert(branchRule.name, branch);
     }
