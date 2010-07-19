@@ -72,7 +72,6 @@ static const CommandLineOption options[] = {
     {"--dry-run", "don't actually write anything"},
     {"--debug-rules", "print what rule is being used for each file"},
     {"--commit-interval NUMBER", "if passed the cache will be flushed to git every NUMBER of commits"},
-    {"--incremental", "attempts to restart an import based on information in log-* and git-fast-import"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},
     CommandLineLastOption
@@ -119,7 +118,6 @@ int main(int argc, char **argv)
 
     // create the repository list
     QHash<QString, Repository *> repositories;
-    bool incremental = args->contains("incremental");
 
     int cutoff = resume_from ? resume_from : INT_MAX;
  retry:
@@ -128,32 +126,30 @@ int main(int argc, char **argv)
         Repository *repo = new Repository(rule);
         repositories.insert(rule.name, repo);
 
-	if (incremental) {
-	    int repo_next = repo->setupIncremental(cutoff);
+	int repo_next = repo->setupIncremental(cutoff);
 
+	/*
+	 * cutoff < resume_from => error exit eventually
+	 * repo_next == cutoff => probably truncated log
+	 */
+	if (cutoff < resume_from && repo_next == cutoff)
 	    /*
-	     * cutoff < resume_from => error exit eventually
-	     * repo_next == cutoff => probably truncated log
+	     * Restore the log file so we fail the next time
+	     * svn2git is invoked with the same arguments
 	     */
-	    if (cutoff < resume_from && repo_next == cutoff)
-		/*
-		 * Restore the log file so we fail the next time
-		 * svn2git is invoked with the same arguments
-		 */
-		repo->restoreLog();
+	    repo->restoreLog();
 
-	    if (cutoff < min_rev)
-		/*
-		 * We've rewound before the last revision of some
-		 * repository that we've already seen.  Start over
-		 * from the beginning.  (since cutoff is decreasing,
-		 * we're sure we'll make forward progress eventually)
-		 */
-		goto retry;
+	if (cutoff < min_rev)
+	    /*
+	     * We've rewound before the last revision of some
+	     * repository that we've already seen.  Start over
+	     * from the beginning.  (since cutoff is decreasing,
+	     * we're sure we'll make forward progress eventually)
+	     */
+	    goto retry;
 
-	    if (min_rev < repo_next)
-		min_rev = repo_next;
-	}
+	if (min_rev < repo_next)
+	    min_rev = repo_next;
     }
 
     if (cutoff < resume_from) {
