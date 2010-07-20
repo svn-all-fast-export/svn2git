@@ -279,18 +279,6 @@ int Repository::createBranch(const QString &branch, int revnum,
                    << "Going to create it automatically";
     }
 
-    QByteArray branchRef = branch.toUtf8();
-        if (!branchRef.startsWith("refs/"))
-            branchRef.prepend("refs/heads/");
-
-    Branch &br = branches[branch];
-    if (br.created && br.created != revnum && br.marks.last()) {
-        QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
-        qWarning() << branch << "already exists; backing up to" << backupBranch;
-
-        fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
-    }
-
     Branch &brFrom = branches[branchFrom];
     if (!brFrom.created) {
         qCritical() << branch << "in repository" << name
@@ -314,11 +302,6 @@ int Repository::createBranch(const QString &branch, int revnum,
 	}
     }
 
-    // now create the branch
-    br.created = revnum;
-    br.commits.append(revnum);
-    br.marks.append(mark);
-
     QByteArray branchFromRef = ":" + QByteArray::number(mark);
     if (!mark) {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
@@ -326,12 +309,29 @@ int Repository::createBranch(const QString &branch, int revnum,
         branchFromRef = branchFrom.toUtf8();
         if (!branchFromRef.startsWith("refs/"))
             branchFromRef.prepend("refs/heads/");
-	branchFromDesc = "at unknown r" + QByteArray::number(branchRevNum);
+	branchFromDesc += ", deleted/unknown";
     }
+
+    QByteArray branchRef = branch.toUtf8();
+        if (!branchRef.startsWith("refs/"))
+            branchRef.prepend("refs/heads/");
+
+    Branch &br = branches[branch];
+    if (br.created && br.created != revnum && br.marks.last()) {
+        QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
+        qWarning() << branch << "already exists; backing up to" << backupBranch;
+
+        fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
+    }
+
+    // now create the branch
+    br.created = revnum;
+    br.commits.append(revnum);
+    br.marks.append(mark);
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
 		     "progress SVN r" + QByteArray::number(revnum)
-		     + " branch " + branch.toUtf8() + " = " + branchFromRef
+		     + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
 		     + " # " + branchFromDesc
 		     + "\n\n");
 
