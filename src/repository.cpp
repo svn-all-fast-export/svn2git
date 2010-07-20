@@ -312,30 +312,7 @@ int Repository::createBranch(const QString &branch, int revnum,
 	branchFromDesc += ", deleted/unknown";
     }
 
-    QByteArray branchRef = branch.toUtf8();
-        if (!branchRef.startsWith("refs/"))
-            branchRef.prepend("refs/heads/");
-
-    Branch &br = branches[branch];
-    if (br.created && br.created != revnum && br.marks.last()) {
-        QByteArray backupBranch = branchRef + '_' + QByteArray::number(revnum);
-        qWarning() << branch << "already exists; backing up to" << backupBranch;
-
-        fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
-    }
-
-    // now create the branch
-    br.created = revnum;
-    br.commits.append(revnum);
-    br.marks.append(mark);
-
-    fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
-		     "progress SVN r" + QByteArray::number(revnum)
-		     + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
-		     + " # " + branchFromDesc
-		     + "\n\n");
-
-    return EXIT_SUCCESS;
+    return resetBranch(branch, revnum, mark, branchFromRef, branchFromDesc);
 }
 
 int Repository::deleteBranch(const QString &branch, int revnum)
