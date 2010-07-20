@@ -341,6 +341,13 @@ int Repository::createBranch(const QString &branch, int revnum,
 int Repository::deleteBranch(const QString &branch, int revnum)
 {
     startFastImport();
+
+    static QByteArray null_sha(40, '0');
+    return resetBranch(branch, revnum, 0, null_sha, "delete");
+}
+
+int Repository::resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment)
+{
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
 	branchRef.prepend("refs/heads/");
@@ -355,12 +362,12 @@ int Repository::deleteBranch(const QString &branch, int revnum)
 
     br.created = revnum;
     br.commits.append(revnum);
-    br.marks.append(0);
+    br.marks.append(mark);
 
-    static QByteArray null_sha(40, '0');
-    fastImport.write("reset " + branchRef + "\nfrom " + null_sha + "\n\n"
+    fastImport.write("reset " + branchRef + "\nfrom " + resetTo + "\n\n"
 		     "progress SVN r" + QByteArray::number(revnum)
-		     + " branch " + branch.toUtf8() + " = :0 # delete\n\n");
+		     + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
+		     + " # " + comment + "\n\n");
 
     return EXIT_SUCCESS;
 }

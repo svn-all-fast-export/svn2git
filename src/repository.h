@@ -113,6 +113,8 @@ private:
     // called when a transaction is deleted
     void forgetTransaction(Transaction *t);
 
+    int resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment);
+
     friend class ProcessCache;
     Q_DISABLE_COPY(Repository)
 };
