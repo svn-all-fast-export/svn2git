@@ -270,7 +270,7 @@ void Repository::reloadBranches()
     }
 }
 
-void Repository::createBranch(const QString &branch, int revnum,
+int Repository::createBranch(const QString &branch, int revnum,
                               const QString &branchFrom, int branchRevNum)
 {
     startFastImport();
@@ -296,7 +296,7 @@ void Repository::createBranch(const QString &branch, int revnum,
         qCritical() << branch << "in repository" << name
                     << "is branching from branch" << branchFrom
                     << "but the latter doesn't exist. Can't continue.";
-        exit(1);
+	return EXIT_FAILURE;
     }
 
     int mark = 0;
@@ -334,9 +334,11 @@ void Repository::createBranch(const QString &branch, int revnum,
 		     + " branch " + branch.toUtf8() + " = " + branchFromRef
 		     + " # " + branchFromDesc
 		     + "\n\n");
+
+    return EXIT_SUCCESS;
 }
 
-void Repository::deleteBranch(const QString &branch, int revnum)
+int Repository::deleteBranch(const QString &branch, int revnum)
 {
     startFastImport();
     QByteArray branchRef = branch.toUtf8();
@@ -359,6 +361,8 @@ void Repository::deleteBranch(const QString &branch, int revnum)
     fastImport.write("reset " + branchRef + "\nfrom " + null_sha + "\n\n"
 		     "progress SVN r" + QByteArray::number(revnum)
 		     + " branch " + branch.toUtf8() + " = :0 # delete\n\n");
+
+    return EXIT_SUCCESS;
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,

@@ -618,8 +618,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
     if (change->change_kind == svn_fs_path_change_delete && current == svnprefix) {
 	qDebug() << "repository" << repository << "branch" << branch << "deleted";
-	repo->deleteBranch(branch, revnum);
-	return EXIT_SUCCESS;
+	return repo->deleteBranch(branch, revnum);
     }
 
     QString previous;
@@ -671,7 +670,8 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 			 << qPrintable(prevbranch);
 	    }
 
-	    repo->createBranch(branch, revnum, prevbranch, rev_from);
+	    if (repo->createBranch(branch, revnum, prevbranch, rev_from) == EXIT_FAILURE)
+		return EXIT_FAILURE;
 	    if (rule.annotate) {
 		// create an annotated tag
 		fetchRevProps();
