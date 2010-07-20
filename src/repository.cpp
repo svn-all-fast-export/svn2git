@@ -270,8 +270,32 @@ void Repository::reloadBranches()
     }
 }
 
+int Repository::markFrom(const QString &branchFrom, int branchRevNum, QByteArray &branchFromDesc)
+{
+    Branch &brFrom = branches[branchFrom];
+    if (!brFrom.created)
+	return -1;
+
+    if (branchRevNum == brFrom.commits.last())
+	return brFrom.marks.last();
+
+    QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
+    if (it == brFrom.commits.begin())
+	return 0;
+
+    int closestCommit = *--it;
+
+    if (!branchFromDesc.isEmpty()) {
+	branchFromDesc += " at r" + QByteArray::number(branchRevNum);
+	if (closestCommit != branchRevNum)
+	    branchFromDesc += " => r" + QByteArray::number(closestCommit);
+    }
+
+    return brFrom.marks[it - brFrom.commits.begin()];
+}
+
 int Repository::createBranch(const QString &branch, int revnum,
-                              const QString &branchFrom, int branchRevNum)
+			     const QString &branchFrom, int branchRevNum)
 {
     startFastImport();
     if (!branches.contains(branch)) {
@@ -279,27 +303,14 @@ int Repository::createBranch(const QString &branch, int revnum,
                    << "Going to create it automatically";
     }
 
-    Branch &brFrom = branches[branchFrom];
-    if (!brFrom.created) {
+    QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
+    int mark = markFrom(branchFrom, branchRevNum, branchFromDesc);
+
+    if (mark == -1) {
         qCritical() << branch << "in repository" << name
                     << "is branching from branch" << branchFrom
                     << "but the latter doesn't exist. Can't continue.";
 	return EXIT_FAILURE;
-    }
-
-    int mark = 0;
-    QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
-    if (branchRevNum == brFrom.commits.last()) {
-	mark = brFrom.marks.last();
-    } else {
-        QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
-	if (it != brFrom.commits.begin()) {
-	    int closestCommit = *--it;
-	    mark = brFrom.marks[it - brFrom.commits.begin()];
-	    branchFromDesc += " at r" + QByteArray::number(branchRevNum);
-	    if (closestCommit != branchRevNum)
-		branchFromDesc += " => r" + QByteArray::number(closestCommit);
-	}
     }
 
     QByteArray branchFromRef = ":" + QByteArray::number(mark);
@@ -489,37 +500,24 @@ void Repository::Transaction::setLog(const QByteArray &l)
     log = l;
 }
 
-void Repository::Transaction::noteCopyFromBranch (const QString &branchFrom, int branchRevNum)
+void Repository::Transaction::noteCopyFromBranch(const QString &branchFrom, int branchRevNum)
 {
-    Branch &brFrom = repository->branches[branchFrom];
-    if (!brFrom.created) {
+    static QByteArray dummy;
+    int mark = repository->markFrom(branchFrom, branchRevNum, dummy);
+    Q_ASSERT(dummy.isEmpty());
+
+    if (mark == -1) {
         qWarning() << branch << "is copying from branch" << branchFrom
                     << "but the latter doesn't exist.  Continuing, assuming the files exist.";
-	return;
-    }
-
-    int mark = 0;
-
-    if (branchRevNum == brFrom.commits.last()) {
-	mark = brFrom.marks.last();
-    } else {
-        QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
-	if (it != brFrom.commits.begin()) {
-	    --it;
-	    mark = brFrom.marks[it - brFrom.commits.begin()];
-	}
-    }
-
-    if (!mark) {
+    } else if (mark == 0) {
 	qWarning() << "Unknown revision r" << QByteArray::number(branchRevNum)
 		       << ".  Continuing, assuming the files exist.";
-	return;
+    } else {
+	qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
+
+	if (!merges.contains(mark))
+	    merges.append(mark);
     }
-
-    qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
-
-    if (!merges.contains(mark))
-	merges.append(mark);
 }
 
 void Repository::Transaction::deleteFile(const QString &path)

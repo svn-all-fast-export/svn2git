@@ -114,6 +114,7 @@ private:
     void forgetTransaction(Transaction *t);
 
     int resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment);
+    int markFrom(const QString &branchFrom, int branchRevNum, QByteArray &desc);
 
     friend class ProcessCache;
     Q_DISABLE_COPY(Repository)
