@@ -49,7 +49,6 @@ public:
     virtual void restoreLog() = 0;
     virtual ~Repository() {}
 
-    virtual void reloadBranches() = 0;
     virtual int createBranch(const QString &branch, int revnum,
 			     const QString &branchFrom, int revFrom) = 0;
     virtual int deleteBranch(const QString &branch, int revnum) = 0;

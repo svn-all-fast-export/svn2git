@@ -123,6 +123,59 @@ private:
     Q_DISABLE_COPY(FastImportRepository)
 };
 
+class PrefixingRepository : public Repository
+{
+    Repository *repo;
+    QString prefix;
+public:
+    class Transaction : public Repository::Transaction
+    {
+        Q_DISABLE_COPY(Transaction)
+
+	Repository::Transaction *txn;
+	QString prefix;
+    public:
+	Transaction(Repository::Transaction *t, const QString &p) : txn(t), prefix(p) {}
+	~Transaction() { delete txn; }
+        void commit() { txn->commit(); }
+
+        void setAuthor(const QByteArray &author) { txn->setAuthor(author); }
+        void setDateTime(uint dt) { txn->setDateTime(dt); }
+        void setLog(const QByteArray &log) { txn->setLog(log); }
+
+	void noteCopyFromBranch (const QString &prevbranch, int revFrom)
+	{ txn->noteCopyFromBranch(prevbranch, revFrom); }
+
+        void deleteFile(const QString &path) { txn->deleteFile(prefix + path); }
+        QIODevice *addFile(const QString &path, int mode, qint64 length)
+        { return txn->addFile(prefix + path, mode, length); }
+    };
+
+    PrefixingRepository(Repository *r, const QString &p) : repo(r), prefix(p) {}
+
+    int setupIncremental(int &) { return 1; }
+    void restoreLog() {}
+
+    int createBranch(const QString &branch, int revnum,
+		     const QString &branchFrom, int revFrom)
+    { return repo->createBranch(branch, revnum, branchFrom, revFrom); }
+
+    int deleteBranch(const QString &branch, int revnum)
+    { return repo->deleteBranch(branch, revnum); }
+
+    Repository::Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum)
+    {
+	Repository::Transaction *t = repo->newTransaction(branch, svnprefix, revnum);
+	return new Transaction(t, prefix);
+    }
+
+    void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,
+			    const QByteArray &author, uint dt,
+			    const QByteArray &log)
+    { repo->createAnnotatedTag(name, svnprefix, revnum, author, dt, log); }
+    void finalizeTags() { /* loop that called this will invoke it on 'repo' too */ }
+};
+
 class ProcessCache: QLinkedList<FastImportRepository *>
 {
 public:
@@ -151,7 +204,14 @@ static ProcessCache processCache;
 
 Repository *makeRepository(const Rules::Repository &rule, const QHash<QString, Repository *> &repositories)
 {
-    return new FastImportRepository(rule);
+    if (rule.forwardTo.isEmpty())
+	return new FastImportRepository(rule);
+    Repository *r = repositories[rule.forwardTo];
+    if (!r) {
+	qCritical() << "no repository with name" << rule.forwardTo << "found at line" << rule.lineNumber;
+	return r;
+    }
+    return new PrefixingRepository(r, rule.prefix);
 }
 
 FastImportRepository::FastImportRepository(const Rules::Repository &rule)

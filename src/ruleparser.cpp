@@ -81,7 +81,13 @@ void Rules::load()
 
                 repo.branches += branch;
                 continue;
-            } else if (line == "end repository") {
+            } else if (matchRepoLine.exactMatch(line)) {
+		repo.forwardTo = matchRepoLine.cap(1);
+		continue;
+	    } else if (matchPrefixLine.exactMatch(line)) {
+		repo.prefix = matchPrefixLine.cap(1);
+		continue;
+	    } else if (line == "end repository") {
                 m_repositories += repo;
 		{
 		    // clear out 'repo'

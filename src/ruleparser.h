@@ -36,6 +36,9 @@ public:
         QList<Branch> branches;
         int lineNumber;
 
+	QString forwardTo;
+	QString prefix;
+
         Repository() : lineNumber(0) { }
     };
 

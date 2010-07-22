@@ -124,6 +124,8 @@ int main(int argc, char **argv)
     int min_rev = 1;
     foreach (Rules::Repository rule, rules.repositories()) {
 	Repository *repo = makeRepository(rule, repositories);
+	if (!repo)
+	    return EXIT_FAILURE;
         repositories.insert(rule.name, repo);
 
 	int repo_next = repo->setupIncremental(cutoff);
