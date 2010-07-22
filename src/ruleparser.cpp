@@ -83,6 +83,11 @@ void Rules::load()
                 continue;
             } else if (line == "end repository") {
                 m_repositories += repo;
+		{
+		    // clear out 'repo'
+		    Repository temp;
+		    std::swap(repo, temp);
+		}
                 state = ReadingNone;
                 continue;
             }
