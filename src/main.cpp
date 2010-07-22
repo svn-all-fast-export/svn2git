@@ -123,7 +123,7 @@ int main(int argc, char **argv)
  retry:
     int min_rev = 1;
     foreach (Rules::Repository rule, rules.repositories()) {
-        Repository *repo = new Repository(rule);
+	Repository *repo = makeRepository(rule, repositories);
         repositories.insert(rule.name, repo);
 
 	int repo_next = repo->setupIncremental(cutoff);
