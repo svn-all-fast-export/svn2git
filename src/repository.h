@@ -42,6 +42,7 @@ public:
 
         QStringList deletedFiles;
         QByteArray modifiedFiles;
+        QVector<QString> modifiedPaths;
 
         inline Transaction() {}
     public:
@@ -85,8 +86,10 @@ private:
 
     QHash<QString, Branch> branches;
     QHash<QString, AnnotatedTag> annotatedTags;
+    // rXXXX, mark
     QHash<int, int> commitMarks;
-    QVector<int> exportedCommits;
+    // rXXXX, [path, path, ...]
+    QHash<int, QVector<QString> > exportedCommits;
     QString name;
     QProcess fastImport;
     int commitCount;

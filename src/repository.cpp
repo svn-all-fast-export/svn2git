@@ -105,7 +105,7 @@ void Repository::closeFastImport()
     qDebug() << exportedMarks.open(QIODevice::Truncate | QIODevice::Text | QIODevice::WriteOnly);
 
     int mark;
-    foreach(mark, exportedCommits)
+    foreach(mark, commitMarks.keys())
     {
         exportedMarks.write(QString(":%2 r%1\n").arg(mark).arg(commitMarks.value(mark)).toLocal8Bit());
     }
@@ -157,11 +157,27 @@ void Repository::createBranch(const QString &branch, int revnum,
     // now create the branch
     br.created = revnum;
     QByteArray branchFromRef;
-    const int closestCommit = *qLowerBound(exportedCommits, branchRevNum);
-    if(commitMarks.contains(closestCommit))
+    const int closestCommit = *qLowerBound(commitMarks.keys(), branchRevNum);
+    if(exportedCommits.contains(closestCommit))
     {
-        branchFromRef = ":" + QByteArray::number(commitMarks.value(closestCommit));
-        qDebug() << "branching from" << closestCommit << "(svn reports r" << branchRevNum << ")";
+        bool pathFound = false;
+        QString path;
+        foreach(path, exportedCommits[closestCommit]) {
+            if(path.contains(branchFrom)) {
+                pathFound = true;
+                break;
+            }
+        }
+
+        if(pathFound) {
+            branchFromRef = ":" + QByteArray::number(commitMarks.value(closestCommit));
+            qDebug() << branch << "in repository" << name << "is branching from" << closestCommit << "(svn reports r" << branchRevNum << ") git mark:" << branchFromRef;
+        } else {
+            qWarning() << branch << "in repository" << name << "is branching from a revision that doesn't touch the branch from path, branching from current revision";
+            branchFromRef = branchFrom.toUtf8();
+            if (!branchFromRef.startsWith("refs/"))
+                branchFromRef.prepend("refs/heads/");
+        }
     } else {
         qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
                 << "creating an empty branch.";
@@ -179,7 +195,7 @@ void Repository::createBranch(const QString &branch, int revnum,
 
     fastImport.write("reset " + branchRef + "\nfrom " + branchFromRef + "\n\n"
                      "progress Branch " + branchRef + " created from "
-                     + branchFromRef + " r" + QByteArray::number(branchRevNum) + "\n\n");
+                     + branchFromRef + " r" + QByteArray::number(branchRevNum) + "(at SVN" + QByteArray::number(revnum) + ")\n\n");
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
@@ -330,6 +346,7 @@ void Repository::Transaction::deleteFile(const QString &path)
     if(pathNoSlash.endsWith('/'))
         pathNoSlash.chop(1);
     deletedFiles.append(pathNoSlash);
+    modifiedPaths.append(path);
 }
 
 QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint64 length)
@@ -353,7 +370,7 @@ QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint6
         repository->fastImport.write(QByteArray::number(length));
         repository->fastImport.write("\n", 1);
     }
-
+    modifiedPaths.append(branch + "/" + path);
     return &repository->fastImport;
 }
 
@@ -377,7 +394,7 @@ void Repository::Transaction::commit()
         s << "commit " << branchRef << endl;
         s << "mark :" << QByteArray::number(++repository->lastmark) << endl;
         repository->commitMarks.insert(revnum, repository->lastmark);
-        repository->exportedCommits.append(revnum);
+        repository->exportedCommits.insert(revnum, modifiedPaths);
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
 
         Branch &br = repository->branches[branch];
