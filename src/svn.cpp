@@ -141,7 +141,10 @@ bool Svn::exportRevision(int revnum)
 SvnPrivate::SvnPrivate(const QString &pathToRepository)
     : global_pool(NULL)
 {
-    openRepository(pathToRepository);
+    if( openRepository(pathToRepository) != EXIT_SUCCESS) {
+        qCritical() << "Failed to open repository";
+        exit(1);
+    }
 
     // get the youngest revision
     svn_fs_youngest_rev(&youngest_rev, fs, global_pool);
