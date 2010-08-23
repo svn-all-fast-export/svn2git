@@ -43,7 +43,11 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
     }
 
     while (!file.atEnd()) {
-        QByteArray line = file.readLine().trimmed();
+        QByteArray line = file.readLine();
+        int comment_pos = line.indexOf('#');
+        if (comment_pos != -1)
+            line.truncate(comment_pos);
+        line = line.trimmed();
         int space = line.indexOf(' ');
         if (space == -1)
             continue;           // invalid line

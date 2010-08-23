@@ -141,7 +141,10 @@ bool Svn::exportRevision(int revnum)
 SvnPrivate::SvnPrivate(const QString &pathToRepository)
     : global_pool(NULL)
 {
-    openRepository(pathToRepository);
+    if( openRepository(pathToRepository) != EXIT_SUCCESS) {
+        qCritical() << "Failed to open repository";
+        exit(1);
+    }
 
     // get the youngest revision
     svn_fs_youngest_rev(&youngest_rev, fs, global_pool);
@@ -322,7 +325,7 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
 
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
         QByteArray entryName = pathname + '/' + dirent->name;
-        QString entryFinalName = finalPathName + dirent->name;
+        QString entryFinalName = finalPathName + QString::fromUtf8(dirent->name);
 
         if (dirent->kind == svn_node_dir) {
             entryFinalName += '/';

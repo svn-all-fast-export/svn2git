@@ -214,6 +214,13 @@ Repository *makeRepository(const Rules::Repository &rule, const QHash<QString, R
     return new PrefixingRepository(r, rule.prefix);
 }
 
+static QString marksFileName(QString name)
+{
+    name.replace('/', '_');
+    name.prepend("marks-");
+    return name;
+}
+
 FastImportRepository::FastImportRepository(const Rules::Repository &rule)
     : name(rule.name), commitCount(0), outstandingTransactions(0),  last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
 {
@@ -236,9 +243,8 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
             init.setWorkingDirectory(name);
             init.start("git", QStringList() << "--bare" << "init");
             init.waitForFinished(-1);
-	    QDir::current().mkpath(name + "/info/fast-import");
 	    {
-	        QFile marks(name + "/info/fast-import/marks");
+		QFile marks(name + "/" + marksFileName(name));
 	        marks.open(QIODevice::WriteOnly);
 	        marks.close();
 	    }
@@ -255,7 +261,7 @@ static QString logFileName(QString name)
 
 static int lastValidMark(QString name)
 {
-    QFile marksfile(name + "/info/fast-import/marks");
+    QFile marksfile(name + "/" + marksFileName(name));
     if (!marksfile.open(QIODevice::ReadOnly))
 	return 0;
 
@@ -628,11 +634,17 @@ void FastImportRepository::startFastImport()
         processHasStarted = true;
 
         // start the process
+        QString marksFile = marksFileName(name);
+        QStringList marksOptions;
+        marksOptions << "--import-marks=" + marksFile;
+        marksOptions << "--export-marks=" + marksFile;
+        marksOptions << "--force";
+
         fastImport.setStandardOutputFile(logFileName(name), QIODevice::Append);
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
         if (!CommandLineParser::instance()->contains("dry-run")) {
-	    fastImport.start("git", QStringList() << "fast-import" << "--relative-marks" << "--import-marks=marks" << "--export-marks=marks" << "--force");
+            fastImport.start("git", QStringList() << "fast-import" << marksOptions);
         } else {
             fastImport.start("/bin/cat", QStringList());
         }
