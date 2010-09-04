@@ -627,7 +627,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 //                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
 //                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
-    if (change->change_kind == svn_fs_path_change_delete && current == svnprefix) {
+    if (change->change_kind == svn_fs_path_change_delete && current == svnprefix && path.isEmpty()) {
         if(ruledebug)
             qDebug() << "repository" << repository << "branch" << branch << "deleted";
         return repo->deleteBranch(branch, revnum);
@@ -650,7 +650,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     }
 
     // current == svnprefix => we're dealing with the contents of the whole branch here
-    if (path_from != NULL && current == svnprefix) {
+    if (path_from != NULL && current == svnprefix && path.isEmpty()) {
         if (previous != prevsvnprefix) {
             // source is not the whole of its branch
             qDebug() << qPrintable(current) << "is a partial branch of repository"
