@@ -31,16 +31,16 @@ public:
     {
         Q_DISABLE_COPY(Transaction)
     protected:
-	Transaction() {}
+        Transaction() {}
     public:
-	virtual ~Transaction() {}
+        virtual ~Transaction() {}
         virtual void commit() = 0;
 
         virtual void setAuthor(const QByteArray &author) = 0;
         virtual void setDateTime(uint dt) = 0;
         virtual void setLog(const QByteArray &log) = 0;
 
-	virtual void noteCopyFromBranch (const QString &prevbranch, int revFrom) = 0;
+        virtual void noteCopyFromBranch (const QString &prevbranch, int revFrom) = 0;
 
         virtual void deleteFile(const QString &path) = 0;
         virtual QIODevice *addFile(const QString &path, int mode, qint64 length) = 0;
@@ -50,13 +50,13 @@ public:
     virtual ~Repository() {}
 
     virtual int createBranch(const QString &branch, int revnum,
-			     const QString &branchFrom, int revFrom) = 0;
+                             const QString &branchFrom, int revFrom) = 0;
     virtual int deleteBranch(const QString &branch, int revnum) = 0;
     virtual Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum) = 0;
 
     virtual void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,
-				    const QByteArray &author, uint dt,
-				    const QByteArray &log) = 0;
+                                    const QByteArray &author, uint dt,
+                                    const QByteArray &log) = 0;
     virtual void finalizeTags() = 0;
 };
 

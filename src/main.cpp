@@ -127,48 +127,48 @@ int main(int argc, char **argv)
  retry:
     int min_rev = 1;
     foreach (Rules::Repository rule, rules.repositories()) {
-	Repository *repo = makeRepository(rule, repositories);
-	if (!repo)
-	    return EXIT_FAILURE;
+        Repository *repo = makeRepository(rule, repositories);
+        if (!repo)
+            return EXIT_FAILURE;
         repositories.insert(rule.name, repo);
 
-	int repo_next = repo->setupIncremental(cutoff);
+        int repo_next = repo->setupIncremental(cutoff);
 
-	/*
-	 * cutoff < resume_from => error exit eventually
-	 * repo_next == cutoff => probably truncated log
-	 */
-	if (cutoff < resume_from && repo_next == cutoff)
-	    /*
-	     * Restore the log file so we fail the next time
-	     * svn2git is invoked with the same arguments
-	     */
-	    repo->restoreLog();
+        /*
+  * cutoff < resume_from => error exit eventually
+  * repo_next == cutoff => probably truncated log
+  */
+        if (cutoff < resume_from && repo_next == cutoff)
+            /*
+      * Restore the log file so we fail the next time
+      * svn2git is invoked with the same arguments
+      */
+            repo->restoreLog();
 
-	if (cutoff < min_rev)
-	    /*
-	     * We've rewound before the last revision of some
-	     * repository that we've already seen.  Start over
-	     * from the beginning.  (since cutoff is decreasing,
-	     * we're sure we'll make forward progress eventually)
-	     */
-	    goto retry;
+        if (cutoff < min_rev)
+            /*
+      * We've rewound before the last revision of some
+      * repository that we've already seen.  Start over
+      * from the beginning.  (since cutoff is decreasing,
+      * we're sure we'll make forward progress eventually)
+      */
+            goto retry;
 
-	if (min_rev < repo_next)
-	    min_rev = repo_next;
+        if (min_rev < repo_next)
+            min_rev = repo_next;
     }
 
     if (cutoff < resume_from) {
-	qCritical() << "Cannot resume from" << resume_from
-		    << "as there are errors in revision" << cutoff;
-	return EXIT_FAILURE;
+        qCritical() << "Cannot resume from" << resume_from
+                    << "as there are errors in revision" << cutoff;
+        return EXIT_FAILURE;
     }
 
     if (min_rev < resume_from)
-	qDebug() << "skipping revisions" << min_rev << "to" << resume_from - 1 << "as requested";
+        qDebug() << "skipping revisions" << min_rev << "to" << resume_from - 1 << "as requested";
 
     if (resume_from)
-	min_rev = resume_from;
+        min_rev = resume_from;
 
     Svn::initialize();
     Svn svn(args->arguments().first());
@@ -182,9 +182,9 @@ int main(int argc, char **argv)
     bool errors = false;
     for (int i = min_rev; i <= max_rev; ++i) {
         if (!svn.exportRevision(i)) {
-	    errors = true;
+            errors = true;
             break;
-	}
+        }
     }
 
     foreach (Repository *repo, repositories) {

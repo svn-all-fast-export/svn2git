@@ -43,7 +43,7 @@ public:
         uint datetime;
         int revnum;
 
-	QVector<int> merges;
+        QVector<int> merges;
 
         QStringList deletedFiles;
         QByteArray modifiedFiles;
@@ -57,7 +57,7 @@ public:
         void setDateTime(uint dt);
         void setLog(const QByteArray &log);
 
-	void noteCopyFromBranch (const QString &prevbranch, int revFrom);
+        void noteCopyFromBranch (const QString &prevbranch, int revFrom);
 
         void deleteFile(const QString &path);
         QIODevice *addFile(const QString &path, int mode, qint64 length);
@@ -69,7 +69,7 @@ public:
 
     void reloadBranches();
     int createBranch(const QString &branch, int revnum,
-		     const QString &branchFrom, int revFrom);
+                     const QString &branchFrom, int revFrom);
     int deleteBranch(const QString &branch, int revnum);
     Repository::Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
 
@@ -83,7 +83,7 @@ private:
     {
         int created;
         QVector<int> commits;
-	QVector<int> marks;
+        QVector<int> marks;
     };
     struct AnnotatedTag
     {
@@ -132,19 +132,19 @@ public:
     {
         Q_DISABLE_COPY(Transaction)
 
-	Repository::Transaction *txn;
-	QString prefix;
+        Repository::Transaction *txn;
+        QString prefix;
     public:
-	Transaction(Repository::Transaction *t, const QString &p) : txn(t), prefix(p) {}
-	~Transaction() { delete txn; }
+        Transaction(Repository::Transaction *t, const QString &p) : txn(t), prefix(p) {}
+        ~Transaction() { delete txn; }
         void commit() { txn->commit(); }
 
         void setAuthor(const QByteArray &author) { txn->setAuthor(author); }
         void setDateTime(uint dt) { txn->setDateTime(dt); }
         void setLog(const QByteArray &log) { txn->setLog(log); }
 
-	void noteCopyFromBranch (const QString &prevbranch, int revFrom)
-	{ txn->noteCopyFromBranch(prevbranch, revFrom); }
+        void noteCopyFromBranch (const QString &prevbranch, int revFrom)
+        { txn->noteCopyFromBranch(prevbranch, revFrom); }
 
         void deleteFile(const QString &path) { txn->deleteFile(prefix + path); }
         QIODevice *addFile(const QString &path, int mode, qint64 length)
@@ -157,7 +157,7 @@ public:
     void restoreLog() {}
 
     int createBranch(const QString &branch, int revnum,
-		     const QString &branchFrom, int revFrom)
+                     const QString &branchFrom, int revFrom)
     { return repo->createBranch(branch, revnum, branchFrom, revFrom); }
 
     int deleteBranch(const QString &branch, int revnum)
@@ -165,13 +165,13 @@ public:
 
     Repository::Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum)
     {
-	Repository::Transaction *t = repo->newTransaction(branch, svnprefix, revnum);
-	return new Transaction(t, prefix);
+        Repository::Transaction *t = repo->newTransaction(branch, svnprefix, revnum);
+        return new Transaction(t, prefix);
     }
 
     void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,
-			    const QByteArray &author, uint dt,
-			    const QByteArray &log)
+                            const QByteArray &author, uint dt,
+                            const QByteArray &log)
     { repo->createAnnotatedTag(name, svnprefix, revnum, author, dt, log); }
     void finalizeTags() { /* loop that called this will invoke it on 'repo' too */ }
 };
@@ -205,11 +205,11 @@ static ProcessCache processCache;
 Repository *makeRepository(const Rules::Repository &rule, const QHash<QString, Repository *> &repositories)
 {
     if (rule.forwardTo.isEmpty())
-	return new FastImportRepository(rule);
+        return new FastImportRepository(rule);
     Repository *r = repositories[rule.forwardTo];
     if (!r) {
-	qCritical() << "no repository with name" << rule.forwardTo << "found at line" << rule.lineNumber;
-	return r;
+        qCritical() << "no repository with name" << rule.forwardTo << "found at line" << rule.lineNumber;
+        return r;
     }
     return new PrefixingRepository(r, rule.prefix);
 }
@@ -243,11 +243,11 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
             init.setWorkingDirectory(name);
             init.start("git", QStringList() << "--bare" << "init");
             init.waitForFinished(-1);
-	    {
-		QFile marks(name + "/" + marksFileName(name));
-	        marks.open(QIODevice::WriteOnly);
-	        marks.close();
-	    }
+            {
+                QFile marks(name + "/" + marksFileName(name));
+                marks.open(QIODevice::WriteOnly);
+                marks.close();
+            }
         }
     }
 }
@@ -263,45 +263,45 @@ static int lastValidMark(QString name)
 {
     QFile marksfile(name + "/" + marksFileName(name));
     if (!marksfile.open(QIODevice::ReadOnly))
-	return 0;
+        return 0;
 
     int prev_mark = 0;
 
     int lineno = 0;
     while (!marksfile.atEnd()) {
-	QString line = marksfile.readLine();
-	++lineno;
-	if (line.isEmpty())
-	    continue;
+        QString line = marksfile.readLine();
+        ++lineno;
+        if (line.isEmpty())
+            continue;
 
-	int mark = 0;
-	if (line[0] == ':') {
-	    int sp = line.indexOf(' ');
-	    if (sp != -1) {
-		QString m = line.mid(1, sp-1);
-		mark = m.toInt();
-	    }
-	}
+        int mark = 0;
+        if (line[0] == ':') {
+            int sp = line.indexOf(' ');
+            if (sp != -1) {
+                QString m = line.mid(1, sp-1);
+                mark = m.toInt();
+            }
+        }
 
-	if (!mark) {
-	    qCritical() << marksfile.fileName() << "line" << lineno << "marks file corrupt?";
-	    return 0;
-	}
+        if (!mark) {
+            qCritical() << marksfile.fileName() << "line" << lineno << "marks file corrupt?";
+            return 0;
+        }
 
-	if (mark == prev_mark) {
-	    qCritical() << marksfile.fileName() << "line" << lineno << "marks file has duplicates";
-	    return 0;
-	}
+        if (mark == prev_mark) {
+            qCritical() << marksfile.fileName() << "line" << lineno << "marks file has duplicates";
+            return 0;
+        }
 
-	if (mark < prev_mark) {
-	    qCritical() << marksfile.fileName() << "line" << lineno << "marks file not sorted";
-	    return 0;
-	}
+        if (mark < prev_mark) {
+            qCritical() << marksfile.fileName() << "line" << lineno << "marks file not sorted";
+            return 0;
+        }
 
-	if (mark > prev_mark + 1)
-	    break;
+        if (mark > prev_mark + 1)
+            break;
 
-	prev_mark = mark;
+        prev_mark = mark;
     }
 
     return prev_mark;
@@ -341,26 +341,26 @@ int FastImportRepository::setupIncremental(int &cutoff)
         int mark = progress.cap(3).toInt();
 
         if (revnum >= cutoff)
-	    goto beyond_cutoff;
+            goto beyond_cutoff;
 
         if (revnum < last_revnum)
             qWarning() << name << "revision numbers are not monotonic: "
                        << "got" << QString::number(last_revnum)
                        << "and then" << QString::number(revnum);
 
-	if (mark > last_valid_mark) {
-	    qWarning() << name << "unknown commit mark found: rewinding -- did you hit Ctrl-C?";
-	    cutoff = revnum;
-	    goto beyond_cutoff;
-	}
+        if (mark > last_valid_mark) {
+            qWarning() << name << "unknown commit mark found: rewinding -- did you hit Ctrl-C?";
+            cutoff = revnum;
+            goto beyond_cutoff;
+        }
 
         last_revnum = revnum;
 
-	if (last_commit_mark < mark)
-	    last_commit_mark = mark;
+        if (last_commit_mark < mark)
+            last_commit_mark = mark;
 
         Branch &br = branches[branch];
-        if (!br.created || !mark || !br.marks.last())
+        if (!br.created || !mark || br.marks.isEmpty())
             br.created = revnum;
         br.commits.append(revnum);
         br.marks.append(mark);
@@ -368,11 +368,11 @@ int FastImportRepository::setupIncremental(int &cutoff)
 
     retval = last_revnum + 1;
     if (retval == cutoff)
-	/*
-	 * If a stale backup file exists already, remove it, so that
-	 * we don't confuse ourselves in 'restoreLog()'
-	 */
-	QFile::remove(bkup);
+        /*
+         * If a stale backup file exists already, remove it, so that
+         * we don't confuse ourselves in 'restoreLog()'
+         */
+        QFile::remove(bkup);
 
     return retval;
 
@@ -392,7 +392,7 @@ void FastImportRepository::restoreLog()
     QString file = logFileName(name);
     QString bkup = file + ".old";
     if (!QFile::exists(bkup))
-	return;
+        return;
     QFile::remove(file);
     QFile::rename(bkup, file);
 }
@@ -425,15 +425,15 @@ void FastImportRepository::reloadBranches()
         Branch &br = branches[branch];
 
         if (!br.marks.count() || !br.marks.last())
-	    continue;
+            continue;
 
         QByteArray branchRef = branch.toUtf8();
         if (!branchRef.startsWith("refs/"))
             branchRef.prepend("refs/heads/");
 
-	fastImport.write("reset " + branchRef +
-			 "\nfrom :" + QByteArray::number(br.marks.last()) + "\n\n"
-			 "progress Branch " + branchRef + " reloaded\n");
+        fastImport.write("reset " + branchRef +
+                        "\nfrom :" + QByteArray::number(br.marks.last()) + "\n\n"
+                        "progress Branch " + branchRef + " reloaded\n");
     }
 }
 
@@ -441,28 +441,34 @@ int FastImportRepository::markFrom(const QString &branchFrom, int branchRevNum, 
 {
     Branch &brFrom = branches[branchFrom];
     if (!brFrom.created)
-	return -1;
+        return -1;
 
-    if (branchRevNum == brFrom.commits.last())
-	return brFrom.marks.last();
+    if (brFrom.commits.isEmpty()) {
+        return -1;
+    }
+    if (branchRevNum == brFrom.commits.last()) {
+        return brFrom.marks.last();
+    }
 
     QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
-    if (it == brFrom.commits.begin())
-	return 0;
+    if (it == brFrom.commits.begin()) {
+        return 0;
+    }
 
     int closestCommit = *--it;
 
     if (!branchFromDesc.isEmpty()) {
-	branchFromDesc += " at r" + QByteArray::number(branchRevNum);
-	if (closestCommit != branchRevNum)
-	    branchFromDesc += " => r" + QByteArray::number(closestCommit);
+        branchFromDesc += " at r" + QByteArray::number(branchRevNum);
+        if (closestCommit != branchRevNum) {
+            branchFromDesc += " => r" + QByteArray::number(closestCommit);
+        }
     }
 
     return brFrom.marks[it - brFrom.commits.begin()];
 }
 
 int FastImportRepository::createBranch(const QString &branch, int revnum,
-			     const QString &branchFrom, int branchRevNum)
+                                     const QString &branchFrom, int branchRevNum)
 {
     startFastImport();
     if (!branches.contains(branch)) {
@@ -477,7 +483,7 @@ int FastImportRepository::createBranch(const QString &branch, int revnum,
         qCritical() << branch << "in repository" << name
                     << "is branching from branch" << branchFrom
                     << "but the latter doesn't exist. Can't continue.";
-	return EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
 
     QByteArray branchFromRef = ":" + QByteArray::number(mark);
@@ -487,8 +493,10 @@ int FastImportRepository::createBranch(const QString &branch, int revnum,
         branchFromRef = branchFrom.toUtf8();
         if (!branchFromRef.startsWith("refs/"))
             branchFromRef.prepend("refs/heads/");
-	branchFromDesc += ", deleted/unknown";
+        branchFromDesc += ", deleted/unknown";
     }
+
+    qDebug() << "Creating branch:" << branch << "from" << branchFrom << "(" << branchRevNum << branchFromDesc << ")";
 
     return resetBranch(branch, revnum, mark, branchFromRef, branchFromDesc);
 }
@@ -505,7 +513,7 @@ int FastImportRepository::resetBranch(const QString &branch, int revnum, int mar
 {
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
-	branchRef.prepend("refs/heads/");
+        branchRef.prepend("refs/heads/");
 
     Branch &br = branches[branch];
     if (br.created && br.created != revnum && br.marks.last()) {
@@ -520,9 +528,9 @@ int FastImportRepository::resetBranch(const QString &branch, int revnum, int mar
     br.marks.append(mark);
 
     fastImport.write("reset " + branchRef + "\nfrom " + resetTo + "\n\n"
-		     "progress SVN r" + QByteArray::number(revnum)
-		     + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
-		     + " # " + comment + "\n\n");
+                     "progress SVN r" + QByteArray::number(revnum)
+                     + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
+                     + " # " + comment + "\n\n");
 
     return EXIT_SUCCESS;
 }
@@ -543,9 +551,11 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
     txn->datetime = 0;
     txn->revnum = revnum;
 
-    if ((++commitCount % CommandLineParser::instance()->optionArgument(QLatin1String("commit-interval"), QLatin1String("10000")).toInt()) == 0)
+    if ((++commitCount % CommandLineParser::instance()->optionArgument(QLatin1String("commit-interval"), QLatin1String("10000")).toInt()) == 0) {
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
+        qDebug() << "checkpoint!, marks file trunkated";
+    }
     outstandingTransactions++;
     return txn;
 }
@@ -675,6 +685,10 @@ void FastImportRepository::Transaction::setLog(const QByteArray &l)
 
 void FastImportRepository::Transaction::noteCopyFromBranch(const QString &branchFrom, int branchRevNum)
 {
+    //if(branch == branchFrom) {
+    //    qWarning() << "Cannot merge inside a branch";
+    //    return;
+    //}
     static QByteArray dummy;
     int mark = repository->markFrom(branchFrom, branchRevNum, dummy);
     Q_ASSERT(dummy.isEmpty());
@@ -683,13 +697,17 @@ void FastImportRepository::Transaction::noteCopyFromBranch(const QString &branch
         qWarning() << branch << "is copying from branch" << branchFrom
                     << "but the latter doesn't exist.  Continuing, assuming the files exist.";
     } else if (mark == 0) {
-	qWarning() << "Unknown revision r" << QByteArray::number(branchRevNum)
-		       << ".  Continuing, assuming the files exist.";
+    qWarning() << "Unknown revision r" << QByteArray::number(branchRevNum)
+               << ".  Continuing, assuming the files exist.";
     } else {
-	qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
+        qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
 
-	if (!merges.contains(mark))
-	    merges.append(mark);
+        if (!merges.contains(mark)) {
+            merges.append(mark);
+            qDebug() << "adding" << branchFrom + "@" + QByteArray::number(branchRevNum) << ":" << mark << "as a merge point";
+        } else {
+            qDebug() << "merge point already recorded";
+        }
     }
 }
 
@@ -750,12 +768,12 @@ void FastImportRepository::Transaction::commit()
 
     int parentmark = 0;
     Branch &br = repository->branches[branch];
-    if (br.created) {
-	parentmark = br.marks.last();
+    if (br.created && !br.marks.isEmpty()) {
+        parentmark = br.marks.last();
     } else {
-	qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
-		   << revnum << "-- did you resume from the wrong revision?";
-	br.created = revnum;
+        qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
+                   << revnum << "-- did you resume from the wrong revision?";
+        br.created = revnum;
     }
     br.commits.append(revnum);
     br.marks.append(mark);
@@ -780,23 +798,25 @@ void FastImportRepository::Transaction::commit()
     QByteArray desc = "";
     int i = !!parentmark;	// if parentmark != 0, there's at least one parent
     foreach (int merge, merges) {
-	if (merge == parentmark)
-	    continue;
+        if (merge == parentmark) {
+            qDebug() << "Skipping marking" << merge << "as a merge point as it matches the parent";
+            continue;
+        }
 
-	if (++i > 16) {
-	    // FIXME: options:
-	    //   (1) ignore the 16 parent limit
-	    //   (2) don't emit more than 16 parents
-	    //   (3) create another commit on branch to soak up additional parents
-	    // we've chosen option (2) for now, since only artificial commits
-	    // created by cvs2svn seem to have this issue
-	    qWarning() << "too many merge parents";
-	    break;
-	}
+        if (++i > 16) {
+            // FIXME: options:
+            //   (1) ignore the 16 parent limit
+            //   (2) don't emit more than 16 parents
+            //   (3) create another commit on branch to soak up additional parents
+            // we've chosen option (2) for now, since only artificial commits
+            // created by cvs2svn seem to have this issue
+            qWarning() << "too many merge parents";
+           break;
+        }
 
-	QByteArray m = " :" + QByteArray::number(merge);
-	desc += m;
-	repository->fastImport.write("merge" + m + "\n");
+        QByteArray m = " :" + QByteArray::number(merge);
+        desc += m;
+        repository->fastImport.write("merge" + m + "\n");
     }
 
     // write the file deletions
@@ -811,8 +831,8 @@ void FastImportRepository::Transaction::commit()
 
     repository->fastImport.write("\nprogress SVN r" + QByteArray::number(revnum)
                                  + " branch " + branch + " = :" + QByteArray::number(mark)
-				 + (desc.isEmpty() ? "" : " # merge from") + desc
-				 + "\n\n");
+                                 + (desc.isEmpty() ? "" : " # merge from") + desc
+                                 + "\n\n");
     printf(" %d modifications from SVN %s to %s/%s",
            deletedFiles.count() + modifiedFiles.count(), svnprefix.data(),
            qPrintable(repository->name), branch.data());

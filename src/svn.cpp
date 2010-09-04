@@ -382,10 +382,12 @@ public:
     QByteArray authorident;
     QByteArray log;
     uint epoch;
+    bool ruledebug;
 
     SvnRevision(int revision, svn_fs_t *f, apr_pool_t *parent_pool)
         : pool(parent_pool), fs(f), fs_root(0), revnum(revision)
     {
+        ruledebug = CommandLineParser::instance()->contains( QLatin1String("debug-rules"));
     }
 
     int open()
@@ -531,16 +533,16 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
             qCritical() << "   " << key << "was reset, panic!";
             return EXIT_FAILURE;
         } else {
-	    // if change_kind == delete, it shouldn't come into this arm of the 'is_dir' test
+            // if change_kind == delete, it shouldn't come into this arm of the 'is_dir' test
             qCritical() << "   " << key << "has unhandled change kind " << change->change_kind << ", panic!";
             return EXIT_FAILURE;
         }
     } else if (change->change_kind == svn_fs_path_change_delete) {
-	is_dir = wasDir(fs, revnum - 1, key, revpool);
+        is_dir = wasDir(fs, revnum - 1, key, revpool);
     }
 
     if (is_dir)
-	current += '/';
+        current += '/';
 
     // find the first rule that matches this pathname
     MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
@@ -553,8 +555,8 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
         qDebug() << current << "is a copy-with-history, auto-recursing";
         return recurse(key, change, path_from, rev_from, changes, revpool);
     } else if (is_dir && change->change_kind == svn_fs_path_change_delete) {
-	qDebug() << current << "deleted, auto-recursing";
-	return recurse(key, change, path_from, rev_from, changes, revpool);
+        qDebug() << current << "deleted, auto-recursing";
+        return recurse(key, change, path_from, rev_from, changes, revpool);
     } else if (wasDir(fs, revnum - 1, key, revpool)) {
         qDebug() << current << "was a directory; ignoring";
     } else if (change->change_kind == svn_fs_path_change_delete) {
@@ -572,27 +574,33 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
                                 apr_hash_t *changes, const QString &current,
                                 const Rules::Match &rule, apr_pool_t *pool)
 {
-    if(CommandLineParser::instance()->contains( QLatin1String("debug-rules")))
-      qDebug() << "    " << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")";
+    //if(ruledebug)
+    //  qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")";
     switch (rule.action) {
     case Rules::Match::Ignore:
-        // ignore rule
-        //qDebug() << "   " << qPrintable(current) << "rev" << revnum
-        //         << "-> ignored (rule" << rule << ")";
+        //if(ruledebug)
+        //    qDebug() << "  " << "ignoring.";
         return EXIT_SUCCESS;
 
     case Rules::Match::Recurse:
+        if(ruledebug)
+            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "recursing.";
         return recurse(key, change, path_from, rev_from, changes, pool);
 
     case Rules::Match::Export:
+        if(ruledebug)
+            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "exporting.";
         if (exportInternal(key, change, path_from, rev_from, current, rule) == EXIT_SUCCESS)
-	    return EXIT_SUCCESS;
-	if (change->change_kind != svn_fs_path_change_delete)
-	    return EXIT_FAILURE;
-	// we know that the default action inside recurse is to recurse further or to ignore,
-	// either of which is reasonably safe for deletion
-	qWarning() << "deleting unknown path" << current << "; auto-recursing";
-	return recurse(key, change, path_from, rev_from, changes, pool);
+            return EXIT_SUCCESS;
+        if (change->change_kind != svn_fs_path_change_delete) {
+            if(ruledebug)
+                qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "Unable to export non path removal.";
+            return EXIT_FAILURE;
+        }
+        // we know that the default action inside recurse is to recurse further or to ignore,
+        // either of which is reasonably safe for deletion
+        qWarning() << "deleting unknown path" << current << "; auto-recursing";
+        return recurse(key, change, path_from, rev_from, changes, pool);
     }
 
     // never reached
@@ -608,10 +616,10 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
     Repository *repo = repositories.value(repository, 0);
     if (!repo) {
-	if (change->change_kind != svn_fs_path_change_delete)
-	    qCritical() << "Rule" << rule
-			<< "references unknown repository" << repository;
-	return EXIT_FAILURE;
+        if (change->change_kind != svn_fs_path_change_delete)
+            qCritical() << "Rule" << rule
+                        << "references unknown repository" << repository;
+        return EXIT_FAILURE;
     }
 
     printf(".");
@@ -620,69 +628,72 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 //                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
     if (change->change_kind == svn_fs_path_change_delete && current == svnprefix) {
-	qDebug() << "repository" << repository << "branch" << branch << "deleted";
-	return repo->deleteBranch(branch, revnum);
+        if(ruledebug)
+            qDebug() << "repository" << repository << "branch" << branch << "deleted";
+        return repo->deleteBranch(branch, revnum);
     }
 
     QString previous;
     QString prevsvnprefix, prevrepository, prevbranch, prevpath;
 
     if (path_from != NULL) {
-	previous = QString::fromUtf8(path_from) + '/';
+        previous = QString::fromUtf8(path_from) + '/';
         MatchRuleList::ConstIterator prevmatch =
             findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
-        if (prevmatch != matchRules.constEnd())
+        if (prevmatch != matchRules.constEnd()) {
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
                           &prevbranch, &prevpath);
-	else
-	    path_from = NULL;
+        } else {
+            qWarning() << "SVN reports a \"copy from\" but no matching rules found! Ignoring copy, treating as a modification";
+            path_from = NULL;
+        }
     }
 
     // current == svnprefix => we're dealing with the contents of the whole branch here
     if (path_from != NULL && current == svnprefix) {
-	if (previous != prevsvnprefix) {
-	    // source is not the whole of its branch
-	    qDebug() << qPrintable(current) << "is a partial branch of repository"
-		     << qPrintable(prevrepository) << "branch"
-		     << qPrintable(prevbranch) << "subdir"
-		     << qPrintable(prevpath);
-	} else if (prevrepository != repository) {
-	    qWarning() << qPrintable(current) << "rev" << revnum
-		       << "is a cross-repository copy (from repository"
-		       << qPrintable(prevrepository) << "branch"
-		       << qPrintable(prevbranch) << "path"
-		       << qPrintable(prevpath) << "rev" << rev_from << ")";
-	} else if (path != prevpath) {
-	    qDebug() << qPrintable(current)
-		     << "is a branch copy which renames base directory of all contents"
-		     << qPrintable(prevpath) << "to" << qPrintable(path);
-	    // FIXME: Handle with fast-import 'file rename' facility
-	    //        ??? Might need special handling when path == / or prevpath == /
-	} else {
-	    if (prevbranch == branch) {
-		// same branch and same repository
-		qDebug() << qPrintable(current) << "rev" << revnum
-			 << "is reseating branch" << qPrintable(branch)
-			 << "to an earlier revision"
-			 << qPrintable(previous) << "rev" << rev_from;
-	    } else {
-		// same repository but not same branch
-		// this means this is a plain branch
-		qDebug() << qPrintable(repository) << ": branch"
-			 << qPrintable(branch) << "is branching from"
-			 << qPrintable(prevbranch);
-	    }
+        if (previous != prevsvnprefix) {
+            // source is not the whole of its branch
+            qDebug() << qPrintable(current) << "is a partial branch of repository"
+                     << qPrintable(prevrepository) << "branch"
+                     << qPrintable(prevbranch) << "subdir"
+                     << qPrintable(prevpath);
+        } else if (prevrepository != repository) {
+            qWarning() << qPrintable(current) << "rev" << revnum
+                       << "is a cross-repository copy (from repository"
+                       << qPrintable(prevrepository) << "branch"
+                       << qPrintable(prevbranch) << "path"
+                       << qPrintable(prevpath) << "rev" << rev_from << ")";
+        } else if (path != prevpath) {
+            qDebug() << qPrintable(current)
+                     << "is a branch copy which renames base directory of all contents"
+                     << qPrintable(prevpath) << "to" << qPrintable(path);
+            // FIXME: Handle with fast-import 'file rename' facility
+            //        ??? Might need special handling when path == / or prevpath == /
+        } else {
+            if (prevbranch == branch) {
+                // same branch and same repository
+                qDebug() << qPrintable(current) << "rev" << revnum
+                         << "is reseating branch" << qPrintable(branch)
+                         << "to an earlier revision"
+                         << qPrintable(previous) << "rev" << rev_from;
+            } else {
+                // same repository but not same branch
+                // this means this is a plain branch
+                qDebug() << qPrintable(repository) << ": branch"
+                         << qPrintable(branch) << "is branching from"
+                         << qPrintable(prevbranch);
+            }
 
-	    if (repo->createBranch(branch, revnum, prevbranch, rev_from) == EXIT_FAILURE)
-		return EXIT_FAILURE;
-	    if (rule.annotate) {
-		// create an annotated tag
-		fetchRevProps();
-		repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
-					 epoch, log);
-	    }
-	    return EXIT_SUCCESS;
-	}
+            if (repo->createBranch(branch, revnum, prevbranch, rev_from) == EXIT_FAILURE)
+                return EXIT_FAILURE;
+            if (rule.annotate) {
+                // create an annotated tag
+                fetchRevProps();
+                repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
+                                         epoch, log);
+            }
+            return EXIT_SUCCESS;
+        }
     }
     Repository::Transaction *txn = transactions.value(repository + branch, 0);
     if (!txn) {
@@ -699,16 +710,28 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     // changes across directory re-organizations and wholesale branch
     // imports.
     //
-    if (path_from != NULL && prevrepository == repository)
-	txn->noteCopyFromBranch (prevbranch, rev_from);
+    if (path_from != NULL && prevrepository == repository) {
+        if(ruledebug)
+            qDebug() << "copy from branch" << prevbranch << "rev" << rev_from;
+        txn->noteCopyFromBranch (prevbranch, rev_from);
+    }
 
-    if (change->change_kind == svn_fs_path_change_replace && path_from == NULL)
+    if (change->change_kind == svn_fs_path_change_replace && path_from == NULL) {
+        if(ruledebug)
+            qDebug() << "replaced with empty path";
         txn->deleteFile(path);
+    }
     if (change->change_kind == svn_fs_path_change_delete) {
+        if(ruledebug)
+            qDebug() << "delete";
         txn->deleteFile(path);
     } else if (!current.endsWith('/')) {
+        if(ruledebug)
+            qDebug() << "add/change file (" << key << "->" << path << ")";
         dumpBlob(txn, fs_root, key, path, pool);
     } else {
+        if(ruledebug)
+            qDebug() << "add/change dir (" << key << "->" << path << ")";
         txn->deleteFile(path);
         recursiveDumpDir(txn, fs_root, key, path, pool);
     }
@@ -722,7 +745,7 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
 {
     svn_fs_root_t *fs_root = this->fs_root;
     if (change->change_kind == svn_fs_path_change_delete)
-	SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum - 1, pool));
+        SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum - 1, pool));
 
     // get the dir listing
     apr_hash_t *entries;
@@ -765,10 +788,10 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
                 return EXIT_FAILURE;
         } else {
             qDebug() << current << "rev" << revnum
-		     << "did not match any rules; auto-recursing";
-	    if (recurse(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
-			rev_from, changes, dirpool) == EXIT_FAILURE)
-		return EXIT_FAILURE;
+                     << "did not match any rules; auto-recursing";
+            if (recurse(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
+                        rev_from, changes, dirpool) == EXIT_FAILURE)
+                return EXIT_FAILURE;
         }
     }
 
