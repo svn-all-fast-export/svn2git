@@ -637,7 +637,13 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     QString prevsvnprefix, prevrepository, prevbranch, prevpath;
 
     if (path_from != NULL) {
-        previous = QString::fromUtf8(path_from) + '/';
+        previous = QString::fromUtf8(path_from);
+        AprAutoPool revpool(pool.data());
+        svn_boolean_t is_dir;
+        SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, path_from, revpool));
+        if (is_dir) {
+            previous += '/';
+        }
         MatchRuleList::ConstIterator prevmatch =
             findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
         if (prevmatch != matchRules.constEnd()) {
