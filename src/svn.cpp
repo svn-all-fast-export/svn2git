@@ -718,20 +718,20 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
     if (change->change_kind == svn_fs_path_change_replace && path_from == NULL) {
         if(ruledebug)
-            qDebug() << "replaced with empty path";
+            qDebug() << "replaced with empty path (" << branch << path << ")";
         txn->deleteFile(path);
     }
     if (change->change_kind == svn_fs_path_change_delete) {
         if(ruledebug)
-            qDebug() << "delete";
+            qDebug() << "delete (" << branch << path << ")";
         txn->deleteFile(path);
     } else if (!current.endsWith('/')) {
         if(ruledebug)
-            qDebug() << "add/change file (" << key << "->" << path << ")";
+            qDebug() << "add/change file (" << key << "->" << branch << path << ")";
         dumpBlob(txn, fs_root, key, path, pool);
     } else {
         if(ruledebug)
-            qDebug() << "add/change dir (" << key << "->" << path << ")";
+            qDebug() << "add/change dir (" << key << "->" << branch << path << ")";
         txn->deleteFile(path);
         recursiveDumpDir(txn, fs_root, key, path, pool);
     }
