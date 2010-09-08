@@ -471,10 +471,6 @@ int FastImportRepository::createBranch(const QString &branch, int revnum,
                                      const QString &branchFrom, int branchRevNum)
 {
     startFastImport();
-    if (!branches.contains(branch)) {
-        qWarning() << branch << "is not a known branch in repository" << name << endl
-                   << "Going to create it automatically";
-    }
 
     QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
     int mark = markFrom(branchFrom, branchRevNum, branchFromDesc);
