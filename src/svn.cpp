@@ -749,6 +749,13 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
 
     // get the dir listing
     apr_hash_t *entries;
+    svn_node_kind_t kind;
+    SVN_ERR(svn_fs_check_path(&kind, fs_root, path, pool));
+    if(kind == svn_node_none) {
+        qWarning() << "Trying to recurse using a nonexistant path" << path << ", ignoring";
+        return EXIT_SUCCESS;
+    }
+
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, path, pool));
 
     AprAutoPool dirpool(pool);
