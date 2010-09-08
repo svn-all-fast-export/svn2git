@@ -559,7 +559,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
 void FastImportRepository::forgetTransaction(Transaction *)
 {
     if (!--outstandingTransactions)
-	next_file_mark = maxMark;
+        next_file_mark = maxMark;
 }
 
 void FastImportRepository::createAnnotatedTag(const QString &ref, const QString &svnprefix,
