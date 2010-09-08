@@ -681,10 +681,10 @@ void FastImportRepository::Transaction::setLog(const QByteArray &l)
 
 void FastImportRepository::Transaction::noteCopyFromBranch(const QString &branchFrom, int branchRevNum)
 {
-    //if(branch == branchFrom) {
-    //    qWarning() << "Cannot merge inside a branch";
-    //    return;
-    //}
+    if(branch == branchFrom) {
+        qWarning() << "Cannot merge inside a branch";
+        return;
+    }
     static QByteArray dummy;
     int mark = repository->markFrom(branchFrom, branchRevNum, dummy);
     Q_ASSERT(dummy.isEmpty());
