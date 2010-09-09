@@ -536,7 +536,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
 {
     startFastImport();
     if (!branches.contains(branch)) {
-        qWarning() << branch << "is not a known branch in repository" << name << endl
+        qWarning() << "Transaction:" << branch << "is not a known branch in repository" << name << endl
                    << "Going to create it automatically";
     }
 
@@ -830,7 +830,7 @@ void FastImportRepository::Transaction::commit()
                                  + (desc.isEmpty() ? "" : " # merge from") + desc
                                  + "\n\n");
     printf(" %d modifications from SVN %s to %s/%s",
-           deletedFiles.count() + modifiedFiles.count(), svnprefix.data(),
+           deletedFiles.count() + modifiedFiles.count('\n'), svnprefix.data(),
            qPrintable(repository->name), branch.data());
 
     while (repository->fastImport.bytesToWrite())

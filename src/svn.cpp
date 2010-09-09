@@ -716,9 +716,9 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     // changes across directory re-organizations and wholesale branch
     // imports.
     //
-    if (path_from != NULL && prevrepository == repository) {
+    if (path_from != NULL && prevrepository == repository && prevbranch != branch) {
         if(ruledebug)
-            qDebug() << "copy from branch" << prevbranch << "rev" << rev_from;
+            qDebug() << "copy from branch" << prevbranch << "to branch" << branch << "@rev" << rev_from;
         txn->noteCopyFromBranch (prevbranch, rev_from);
     }
 
