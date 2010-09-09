@@ -16,6 +16,7 @@
  */
 
 #include <QTextStream>
+#include <QList>
 #include <QFile>
 #include <QDebug>
 
@@ -40,12 +41,37 @@ QList<Rules::Match> Rules::matchRules()
     return m_matchRules;
 }
 
-void Rules::load()
+QStringList Rules::readRules(const QString &filename) const
 {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly))
         qFatal("Could not read the rules file: %s", qPrintable(filename));
+    QStringList allLines;
+    QRegExp includeLine("include\\s+(.*)", Qt::CaseInsensitive);
 
+    QTextStream s(&file);
+    QStringList lines = s.readAll().split('\n', QString::KeepEmptyParts);
+
+    QStringList::iterator it;
+    for(it = lines.begin(); it != lines.end(); ++it) {
+        QString line = *it;
+        bool isIncludeRule = includeLine.exactMatch(line);
+
+        if (isIncludeRule) {
+            int index = filename.lastIndexOf("/");
+            QString includeFile = filename.left( index + 1) + includeLine.cap(1);
+            allLines.append( readRules(includeFile));
+        } else {
+            allLines.append(line);
+        }
+    }
+    file.close();
+    return allLines;
+}
+
+void Rules::load()
+{
+    QStringList lines = readRules(filename);
     // initialize the regexps we will use
     QRegExp repoLine("create repository\\s+(\\S+)", Qt::CaseInsensitive);
 
@@ -57,14 +83,15 @@ void Rules::load()
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchPrefixLine("prefix\\s+(\\S+)", Qt::CaseInsensitive);
 
-    QTextStream s(&file);
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
     Repository repo;
     Match match;
     int lineNumber = 0;
-    while (!s.atEnd()) {
+
+    QStringList::iterator it;
+    for(it = lines.begin(); it != lines.end(); ++it) {
         ++lineNumber;
-        QString origLine = s.readLine();
+        QString origLine = *it;
         QString line = origLine;
 
         int hash = line.indexOf('#');
@@ -82,18 +109,18 @@ void Rules::load()
                 repo.branches += branch;
                 continue;
             } else if (matchRepoLine.exactMatch(line)) {
-		repo.forwardTo = matchRepoLine.cap(1);
-		continue;
-	    } else if (matchPrefixLine.exactMatch(line)) {
-		repo.prefix = matchPrefixLine.cap(1);
-		continue;
-	    } else if (line == "end repository") {
+                repo.forwardTo = matchRepoLine.cap(1);
+                continue;
+            } else if (matchPrefixLine.exactMatch(line)) {
+                repo.prefix = matchPrefixLine.cap(1);
+                continue;
+            } else if (line == "end repository") {
                 m_repositories += repo;
-		{
-		    // clear out 'repo'
-		    Repository temp;
-		    std::swap(repo, temp);
-		}
+                {
+                    // clear out 'repo'
+                    Repository temp;
+                    std::swap(repo, temp);
+                }
                 state = ReadingNone;
                 continue;
             }

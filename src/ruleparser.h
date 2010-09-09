@@ -21,6 +21,7 @@
 #include <QList>
 #include <QRegExp>
 #include <QString>
+#include <QStringList>
 
 class Rules
 {
@@ -69,6 +70,7 @@ public:
     QList<Match> matchRules();
 
     void load();
+    QStringList readRules(const QString &filename) const;
 
 private:
     QString filename;
