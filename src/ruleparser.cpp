@@ -82,6 +82,10 @@ void Rules::load()
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchPrefixLine("prefix\\s+(\\S+)", Qt::CaseInsensitive);
+    QRegExp declareLine("declare\\s+(\\S+)\\s*=\\s*(\\S+)", Qt::CaseInsensitive);
+    QRegExp variableLine("\\$\\{(\\S+)\\}", Qt::CaseInsensitive);
+
+    QMap<QString,QString> variables;
 
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
     Repository repo;
@@ -101,6 +105,12 @@ void Rules::load()
         if (line.isEmpty())
             continue;
 
+        int index = variableLine.indexIn(line);
+        if ( index != -1 ) {
+            if (!variables.contains(variableLine.cap(1)))
+                qFatal("Undeclared variable: %s", qPrintable(variableLine.cap(1)));
+            line = line.replace(variableLine, variables[variableLine.cap(1)]);
+        }
         if (state == ReadingRepository) {
             if (matchBranchLine.exactMatch(line)) {
                 Repository::Branch branch;
@@ -169,6 +179,7 @@ void Rules::load()
 
         bool isRepositoryRule = repoLine.exactMatch(line);
         bool isMatchRule = matchLine.exactMatch(line);
+        bool isVariableRule = declareLine.exactMatch(line);
 
         if (isRepositoryRule) {
             // repository rule
@@ -182,6 +193,10 @@ void Rules::load()
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
             match.lineNumber = lineNumber;
+        } else if (isVariableRule) {
+            QString variable = declareLine.cap(1);
+            QString value = declareLine.cap(2);
+            variables.insert(variable, value);
         } else {
             qFatal("Malformed line in rules file: line %d: %s",
                    lineNumber, qPrintable(origLine));
