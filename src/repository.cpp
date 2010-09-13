@@ -21,11 +21,71 @@
 #include <QTextStream>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QLinkedList>
 
 static const int maxSimultaneousProcesses = 100;
 
 static const int maxMark = (1 << 20) - 1; // some versions of git-fast-import are buggy for larger values of maxMark
+
+class LoggingQProcess : public QProcess
+{
+    QFile log;
+    bool logging;
+public:
+    LoggingQProcess(const QString filename) : QProcess(), log() {
+        if(CommandLineParser::instance()->contains("debug-rules")) {
+            logging = true;
+            QString name = filename;
+            name.replace('/', '_');
+            name.prepend("gitlog-");
+            log.setFileName(name);
+            log.open(QIODevice::WriteOnly);
+        } else {
+            logging = false;
+        }
+    };
+    ~LoggingQProcess() {
+        if(logging) {
+            log.close();
+        }
+    };
+
+    qint64 write(const char *data) {
+        if(logging) {
+            log.write(data);
+        }
+        return QProcess::write(data);
+    }
+    qint64 write(const char *data, qint64 length) {
+        if(logging) {
+            log.write(data);
+        }
+        return QProcess::write(data, length);
+    }
+    qint64 write(const QByteArray &data) {
+        if(logging) {
+            log.write(data);
+        }
+        return QProcess::write(data);
+    }
+    qint64 writeNoLog(const char *data) {
+        return QProcess::write(data);
+    }
+    qint64 writeNoLog(const char *data, qint64 length) {
+        return QProcess::write(data, length);
+    }
+    qint64 writeNoLog(const QByteArray &data) {
+        return QProcess::write(data);
+    }
+    bool putChar( char c) {
+        if(logging) {
+            log.putChar(c);
+        }
+        return QProcess::putChar(c);
+    }
+};
+
 
 class FastImportRepository : public Repository
 {
@@ -98,7 +158,7 @@ private:
     QHash<QString, Branch> branches;
     QHash<QString, AnnotatedTag> annotatedTags;
     QString name;
-    QProcess fastImport;
+    LoggingQProcess fastImport;
     int commitCount;
     int outstandingTransactions;
 
@@ -222,7 +282,7 @@ static QString marksFileName(QString name)
 }
 
 FastImportRepository::FastImportRepository(const Rules::Repository &rule)
-    : name(rule.name), commitCount(0), outstandingTransactions(0),  last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
+    : name(rule.name), fastImport(name), commitCount(0), outstandingTransactions(0),  last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
@@ -733,11 +793,11 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     modifiedFiles.append("\n");
 
     if (!CommandLineParser::instance()->contains("dry-run")) {
-        repository->fastImport.write("blob\nmark :");
-        repository->fastImport.write(QByteArray::number(mark));
-        repository->fastImport.write("\ndata ");
-        repository->fastImport.write(QByteArray::number(length));
-        repository->fastImport.write("\n", 1);
+        repository->fastImport.writeNoLog("blob\nmark :");
+        repository->fastImport.writeNoLog(QByteArray::number(mark));
+        repository->fastImport.writeNoLog("\ndata ");
+        repository->fastImport.writeNoLog(QByteArray::number(length));
+        repository->fastImport.writeNoLog("\n", 1);
     }
 
     return &repository->fastImport;
