@@ -572,7 +572,7 @@ int FastImportRepository::resetBranch(const QString &branch, int revnum, int mar
         branchRef.prepend("refs/heads/");
 
     Branch &br = branches[branch];
-    if (br.created && br.created != revnum && br.marks.last()) {
+    if (br.created && br.created != revnum && !br.marks.isEmpty()) {
         QByteArray backupBranch = "refs/backups/r" + QByteArray::number(revnum) + branchRef.mid(4);
         qWarning() << "backing up branch" << branch << "to" << backupBranch;
 
