@@ -420,7 +420,7 @@ int FastImportRepository::setupIncremental(int &cutoff)
             last_commit_mark = mark;
 
         Branch &br = branches[branch];
-        if (!br.created || !mark || br.marks.isEmpty())
+        if (!br.created || !mark || br.marks.isEmpty() || !br.marks.last())
             br.created = revnum;
         br.commits.append(revnum);
         br.marks.append(mark);
@@ -484,7 +484,7 @@ void FastImportRepository::reloadBranches()
     foreach (QString branch, branches.keys()) {
         Branch &br = branches[branch];
 
-        if (!br.marks.count() || !br.marks.last())
+        if (br.marks.isEmpty() || !br.marks.last())
             continue;
 
         QByteArray branchRef = branch.toUtf8();
@@ -572,7 +572,7 @@ int FastImportRepository::resetBranch(const QString &branch, int revnum, int mar
         branchRef.prepend("refs/heads/");
 
     Branch &br = branches[branch];
-    if (br.created && br.created != revnum && !br.marks.isEmpty()) {
+    if (br.created && br.created != revnum && !br.marks.isEmpty() && br.marks.last()) {
         QByteArray backupBranch = "refs/backups/r" + QByteArray::number(revnum) + branchRef.mid(4);
         qWarning() << "backing up branch" << branch << "to" << backupBranch;
 
@@ -824,7 +824,7 @@ void FastImportRepository::Transaction::commit()
 
     int parentmark = 0;
     Branch &br = repository->branches[branch];
-    if (br.created && !br.marks.isEmpty()) {
+    if (br.created && !br.marks.isEmpty() && br.marks.last()) {
         parentmark = br.marks.last();
     } else {
         qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
