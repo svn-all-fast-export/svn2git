@@ -895,5 +895,5 @@ void FastImportRepository::Transaction::commit()
 
     while (repository->fastImport.bytesToWrite())
         if (!repository->fastImport.waitForBytesWritten(-1))
-            qFatal("Failed to write to process: %s", qPrintable(repository->fastImport.errorString()));
+            qFatal("Failed to write to process: %s for repository %s", qPrintable(repository->fastImport.errorString()), qPrintable(repository->name));
 }
