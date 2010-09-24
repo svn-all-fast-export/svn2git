@@ -52,33 +52,40 @@ public:
     };
 
     qint64 write(const char *data) {
+        Q_ASSERT(state() == QProcess::Running);
         if(logging) {
             log.write(data);
         }
         return QProcess::write(data);
     }
     qint64 write(const char *data, qint64 length) {
+        Q_ASSERT(state() == QProcess::Running);
         if(logging) {
             log.write(data);
         }
         return QProcess::write(data, length);
     }
     qint64 write(const QByteArray &data) {
+        Q_ASSERT(state() == QProcess::Running);
         if(logging) {
             log.write(data);
         }
         return QProcess::write(data);
     }
     qint64 writeNoLog(const char *data) {
+        Q_ASSERT(state() == QProcess::Running);
         return QProcess::write(data);
     }
     qint64 writeNoLog(const char *data, qint64 length) {
+        Q_ASSERT(state() == QProcess::Running);
         return QProcess::write(data, length);
     }
     qint64 writeNoLog(const QByteArray &data) {
+        Q_ASSERT(state() == QProcess::Running);
         return QProcess::write(data);
     }
     bool putChar( char c) {
+        Q_ASSERT(state() == QProcess::Running);
         if(logging) {
             log.putChar(c);
         }
@@ -714,6 +721,7 @@ void FastImportRepository::startFastImport()
         } else {
             fastImport.start("/bin/cat", QStringList());
         }
+        fastImport.waitForStarted(-1);
 
         reloadBranches();
     }
