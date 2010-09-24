@@ -815,7 +815,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
 
 void FastImportRepository::Transaction::commit()
 {
-    processCache.touch(repository);
+    repository->startFastImport();
 
     // We might be tempted to use the SVN revision number as the fast-import commit mark.
     // However, a single SVN revision can modify multple branches, and thus lead to multiple
