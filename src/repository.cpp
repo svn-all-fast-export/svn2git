@@ -701,6 +701,8 @@ void FastImportRepository::finalizeTags()
 
 void FastImportRepository::startFastImport()
 {
+    processCache.touch(this);
+
     if (fastImport.state() == QProcess::NotRunning) {
         if (processHasStarted)
             qFatal("git-fast-import has been started once and crashed?");
