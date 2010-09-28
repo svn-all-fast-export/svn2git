@@ -22,11 +22,18 @@
 #include <QRegExp>
 #include <QString>
 #include <QStringList>
+#include <QStringBuilder>
 
 class Rules
 {
 public:
-    struct Repository
+    struct Rule
+    {
+        QString filename;
+        int lineNumber;
+        Rule() : lineNumber(0) {}
+    };
+    struct Repository : Rule
     {
         struct Branch
         {
@@ -35,15 +42,19 @@ public:
 
         QString name;
         QList<Branch> branches;
-        int lineNumber;
 
         QString forwardTo;
         QString prefix;
 
-        Repository() : lineNumber(0) { }
+        Repository() { }
+        const QString info() const {
+            const QString info = Rule::filename % ":" % QByteArray::number(Rule::lineNumber);
+            return info;
+        }
+
     };
 
-    struct Match
+    struct Match : Rule
     {
         QRegExp rx;
         QString repository;
@@ -51,7 +62,6 @@ public:
         QString prefix;
         int minRevision;
         int maxRevision;
-        int lineNumber;
         bool annotate;
 
         enum Action {
@@ -60,7 +70,11 @@ public:
             Recurse
         } action;
 
-        Match() : minRevision(-1), maxRevision(-1), lineNumber(0), annotate(false), action(Ignore) { }
+        Match() : minRevision(-1), maxRevision(-1), annotate(false), action(Ignore) { }
+        const QString info() const {
+            const QString info = rx.pattern() % " (" % Rule::filename % ":" % QByteArray::number(Rule::lineNumber) % ")";
+            return info;
+        }
     };
 
     Rules(const QString &filename);

@@ -187,12 +187,14 @@ void Rules::load()
             repo = Repository(); // clear
             repo.name = repoLine.cap(1);
             repo.lineNumber = lineNumber;
+            repo.filename = filename;
         } else if (isMatchRule) {
             // match rule
             state = ReadingMatch;
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
             match.lineNumber = lineNumber;
+            match.filename = filename;
         } else if (isVariableRule) {
             QString variable = declareLine.cap(1);
             QString value = declareLine.cap(2);
@@ -207,7 +209,7 @@ void Rules::load()
 #ifndef QT_NO_DEBUG_STREAM
 QDebug operator<<(QDebug s, const Rules::Match &rule)
 {
-    s.nospace() << rule.rx.pattern() << " (line " << rule.lineNumber << ")";
+    s.nospace() << rule.info();
     return s.space();
 }
 

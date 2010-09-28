@@ -275,7 +275,7 @@ Repository *makeRepository(const Rules::Repository &rule, const QHash<QString, R
         return new FastImportRepository(rule);
     Repository *r = repositories[rule.forwardTo];
     if (!r) {
-        qCritical() << "no repository with name" << rule.forwardTo << "found at line" << rule.lineNumber;
+        qCritical() << "no repository with name" << rule.forwardTo << "found at" << rule.info();
         return r;
     }
     return new PrefixingRepository(r, rule.prefix);

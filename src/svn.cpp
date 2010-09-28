@@ -584,17 +584,17 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
 
     case Rules::Match::Recurse:
         if(ruledebug)
-            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "recursing.";
+            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.info() << "  " << "recursing.";
         return recurse(key, change, path_from, rev_from, changes, pool);
 
     case Rules::Match::Export:
         if(ruledebug)
-            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "exporting.";
+            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.info() << "  " << "exporting.";
         if (exportInternal(key, change, path_from, rev_from, current, rule) == EXIT_SUCCESS)
             return EXIT_SUCCESS;
         if (change->change_kind != svn_fs_path_change_delete) {
             if(ruledebug)
-                qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "Unable to export non path removal.";
+                qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.info() << "  " << "Unable to export non path removal.";
             return EXIT_FAILURE;
         }
         // we know that the default action inside recurse is to recurse further or to ignore,
