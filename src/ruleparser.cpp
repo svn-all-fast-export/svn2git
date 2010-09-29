@@ -193,6 +193,10 @@ void Rules::load()
             state = ReadingMatch;
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
+            if( !match.rx.isValid() )
+                qFatal("Malformed regular expression '%s' in file:'%s':%d, Error: %s",
+                       qPrintable(matchLine.cap(1)), qPrintable(filename), lineNumber,
+                       qPrintable(match.rx.errorString()));
             match.lineNumber = lineNumber;
             match.filename = filename;
         } else if (isVariableRule) {
