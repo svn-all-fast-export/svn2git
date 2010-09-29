@@ -33,7 +33,7 @@ public:
     Svn(const QString &pathToRepository);
     ~Svn();
 
-    void setMatchRules(const QList<Rules::Match> &matchRules);
+    void setMatchRules(const QList<QList<Rules::Match> > &matchRules);
     void setRepositories(const QHash<QString, Repository *> &repositories);
     void setIdentityMap(const QHash<QByteArray, QByteArray> &identityMap);
 

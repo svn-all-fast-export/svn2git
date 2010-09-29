@@ -77,7 +77,8 @@ void CommandLineParser::Private::addDefinitions(const CommandLineOption * option
     for (int i=0; options[i].specification != 0; i++) {
         OptionDefinition definition;
         QString option = QString::fromLatin1(options[i].specification);
-        if (option.indexOf(QLatin1Char(',')) >= 0) {
+        // options with optional params are written as "--option required[, optional]
+        if (option.indexOf(QLatin1Char(',')) >= 0 && ( option.indexOf(QLatin1Char('[')) < 0 || option.indexOf(QLatin1Char(']')) < 0) ) {
             QStringList optionParts = option.split(QLatin1Char(','), QString::SkipEmptyParts);
             if (optionParts.count() != 2) {
                 qWarning() << "option definition '" << option << "' is faulty; only one ',' allowed";

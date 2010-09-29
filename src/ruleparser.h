@@ -80,8 +80,8 @@ public:
     Rules(const QString &filename);
     ~Rules();
 
-    QList<Repository> repositories();
-    QList<Match> matchRules();
+    const QList<Repository> repositories() const;
+    const QList<Match> matchRules() const;
 
     void load();
     QStringList readRules(const QString &filename) const;
@@ -90,6 +90,24 @@ private:
     QString filename;
     QList<Repository> m_repositories;
     QList<Match> m_matchRules;
+};
+
+class RulesList
+{
+public:
+  RulesList( const QString &filenames);
+  ~RulesList();
+
+  const QList<Rules::Repository> allRepositories() const;
+  const QList<QList<Rules::Match> > allMatchRules() const;
+  const QList<Rules*> rules() const;
+  void load();
+
+private:
+  QString m_filenames;
+  QList<Rules*> m_rules;
+  QList<Rules::Repository> m_allrepositories;
+  QList<QList<Rules::Match> > m_allMatchRules;
 };
 
 #ifndef QT_NO_DEBUG_STREAM
