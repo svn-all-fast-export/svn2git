@@ -31,12 +31,12 @@ Rules::~Rules()
 {
 }
 
-QList<Rules::Repository> Rules::repositories()
+const QList<Rules::Repository> Rules::repositories() const
 {
     return m_repositories;
 }
 
-QList<Rules::Match> Rules::matchRules()
+const QList<Rules::Match> Rules::matchRules() const
 {
     return m_matchRules;
 }
