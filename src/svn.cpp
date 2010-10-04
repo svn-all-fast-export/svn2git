@@ -285,11 +285,17 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
             QByteArray buf;
             buf.reserve(len);
             SVN_ERR(svn_stream_read(in_stream, buf.data(), &len));
-            if (len != strlen("link ") || strncmp(buf, "link ", len) != 0)
-                qFatal("file %s is svn:special but not a symlink", pathname);
+            if (len == strlen("link ") && strncmp(buf, "link ", len) == 0) {
+                mode = 0120000;
+                stream_length -= len;
+            } else {
+                //this can happen if a link changed into a file in one commit
+                qWarning("file %s is svn:special but not a symlink", pathname);
+                // re-open the file as we tried to read "link "
+                svn_stream_close(in_stream);
+                SVN_ERR(svn_fs_file_contents(&in_stream, fs_root, pathname, dumppool));
+            }
         }
-        mode = 0120000;
-        stream_length -= len;
     }
 
     QIODevice *io = txn->addFile(finalPathName, mode, stream_length);
