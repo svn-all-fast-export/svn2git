@@ -29,11 +29,13 @@ struct CommandLineOption {
      * <li>"-a, --all" </li>
      * <li>"--version" </li>
      * <li>"--type name" </li>
+     * <li>"--list item[,item]" </li>
      * <li>"-f, --format name [suffix] [foo]" </li> </ol>
      * Number 1 allows the user to either type -a or --all (or /A on Windows) to activate this option.
      * Number 2 allows the user to type --version to activate this option.
      * Number 3 requires the user to type a single argument after the option.
-     * Number 4 Allows the user to either use -f or --format, which is followed by one required argument
+     * Number 4 allows the user to use an option that takes a required argument and one or more optional ones
+     * Number 5 Allows the user to either use -f or --format, which is followed by one required argument
      *          and optionally 2 more arguments.
      */
     const char *specification;

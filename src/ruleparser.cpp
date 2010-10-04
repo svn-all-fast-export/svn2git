@@ -22,6 +22,41 @@
 
 #include "ruleparser.h"
 
+RulesList::RulesList(const QString &filenames)
+  : m_filenames(filenames)
+{
+}
+
+RulesList::~RulesList() {}
+
+void RulesList::load()
+{
+    foreach(const QString filename, m_filenames.split(',') ) {
+        qDebug() << "Loading rules from:" << filename;
+        Rules *rules = new Rules(filename);
+        m_rules.append(rules);
+        rules->load();
+        m_allrepositories.append(rules->repositories());
+        QList<Rules::Match> matchRules = rules->matchRules();
+        m_allMatchRules.append( QList<Rules::Match>(matchRules));
+    }
+}
+
+const QList<Rules::Repository> RulesList::allRepositories() const
+{
+  return m_allrepositories;
+}
+
+const QList<QList<Rules::Match> > RulesList::allMatchRules() const
+{
+  return m_allMatchRules;
+}
+
+const QList<Rules*> RulesList::rules() const
+{
+  return m_rules;
+}
+
 Rules::Rules(const QString &fn)
     : filename(fn)
 {
@@ -31,12 +66,12 @@ Rules::~Rules()
 {
 }
 
-QList<Rules::Repository> Rules::repositories()
+const QList<Rules::Repository> Rules::repositories() const
 {
     return m_repositories;
 }
 
-QList<Rules::Match> Rules::matchRules()
+const QList<Rules::Match> Rules::matchRules() const
 {
     return m_matchRules;
 }
@@ -187,12 +222,18 @@ void Rules::load()
             repo = Repository(); // clear
             repo.name = repoLine.cap(1);
             repo.lineNumber = lineNumber;
+            repo.filename = filename;
         } else if (isMatchRule) {
             // match rule
             state = ReadingMatch;
             match = Match();
             match.rx = QRegExp(matchLine.cap(1), Qt::CaseSensitive, QRegExp::RegExp2);
+            if( !match.rx.isValid() )
+                qFatal("Malformed regular expression '%s' in file:'%s':%d, Error: %s",
+                       qPrintable(matchLine.cap(1)), qPrintable(filename), lineNumber,
+                       qPrintable(match.rx.errorString()));
             match.lineNumber = lineNumber;
+            match.filename = filename;
         } else if (isVariableRule) {
             QString variable = declareLine.cap(1);
             QString value = declareLine.cap(2);
@@ -207,7 +248,7 @@ void Rules::load()
 #ifndef QT_NO_DEBUG_STREAM
 QDebug operator<<(QDebug s, const Rules::Match &rule)
 {
-    s.nospace() << rule.rx.pattern() << " (line " << rule.lineNumber << ")";
+    s.nospace() << rule.info();
     return s.space();
 }
 

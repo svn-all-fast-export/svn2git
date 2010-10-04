@@ -69,7 +69,7 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
 
 static const CommandLineOption options[] = {
     {"--identity-map FILENAME", "provide map between svn username and email"},
-    {"--rules FILENAME", "the rules file that determines what goes where"},
+    {"--rules FILENAME[,FILENAME]", "the rules file(s) that determines what goes where"},
     {"--add-metadata", "if passed, each git commit will have svn commit info"},
     {"--resume-from revision", "start importing at svn revision number"},
     {"--max-rev revision", "stop importing at svn revision number"},
@@ -114,8 +114,8 @@ int main(int argc, char **argv)
 
     QCoreApplication app(argc, argv);
     // Load the configuration
-    Rules rules(args->optionArgument(QLatin1String("rules")));
-    rules.load();
+    RulesList rulesList(args->optionArgument(QLatin1String("rules")));
+    rulesList.load();
 
     int resume_from = args->optionArgument(QLatin1String("resume-from")).toInt();
     int max_rev = args->optionArgument(QLatin1String("max-rev")).toInt();
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
     int cutoff = resume_from ? resume_from : INT_MAX;
  retry:
     int min_rev = 1;
-    foreach (Rules::Repository rule, rules.repositories()) {
+    foreach (Rules::Repository rule, rulesList.allRepositories()) {
         Repository *repo = makeRepository(rule, repositories);
         if (!repo)
             return EXIT_FAILURE;
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 
     Svn::initialize();
     Svn svn(args->arguments().first());
-    svn.setMatchRules(rules.matchRules());
+    svn.setMatchRules(rulesList.allMatchRules());
     svn.setRepositories(repositories);
     svn.setIdentityMap(loadIdentityMapFile(args->optionArgument("identity-map")));
 

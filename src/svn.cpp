@@ -74,7 +74,7 @@ public:
 class SvnPrivate
 {
 public:
-    MatchRuleList matchRules;
+    QList<MatchRuleList> allMatchRules;
     RepositoryHash repositories;
     IdentityHash identities;
 
@@ -113,9 +113,9 @@ Svn::~Svn()
     delete d;
 }
 
-void Svn::setMatchRules(const MatchRuleList &matchRules)
+void Svn::setMatchRules(const QList<MatchRuleList> &allMatchRules)
 {
-    d->matchRules = matchRules;
+    d->allMatchRules = allMatchRules;
 }
 
 void Svn::setRepositories(const RepositoryHash &repositories)
@@ -376,7 +376,7 @@ class SvnRevision
 public:
     AprAutoPool pool;
     QHash<QString, Repository::Transaction *> transactions;
-    MatchRuleList matchRules;
+    QList<MatchRuleList> allMatchRules;
     RepositoryHash repositories;
     IdentityHash identities;
 
@@ -410,19 +410,19 @@ public:
     int exportDispatch(const char *path, const svn_fs_path_change_t *change,
                        const char *path_from, svn_revnum_t rev_from,
                        apr_hash_t *changes, const QString &current, const Rules::Match &rule,
-                       apr_pool_t *pool);
+                       const MatchRuleList &matchRules, apr_pool_t *pool);
     int exportInternal(const char *path, const svn_fs_path_change_t *change,
                        const char *path_from, svn_revnum_t rev_from,
-                       const QString &current, const Rules::Match &rule);
+                       const QString &current, const Rules::Match &rule, const MatchRuleList &matchRules);
     int recurse(const char *path, const svn_fs_path_change_t *change,
-                const char *path_from, svn_revnum_t rev_from,
+                const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                 apr_hash_t *changes, apr_pool_t *pool);
 };
 
 int SvnPrivate::exportRevision(int revnum)
 {
     SvnRevision rev(revnum, fs, global_pool);
-    rev.matchRules = matchRules;
+    rev.allMatchRules = allMatchRules;
     rev.repositories = repositories;
     rev.identities = identities;
 
@@ -550,20 +550,33 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     if (is_dir)
         current += '/';
 
-    // find the first rule that matches this pathname
-    MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
-    if (match != matchRules.constEnd()) {
-        const Rules::Match &rule = *match;
-        return exportDispatch(key, change, path_from, rev_from, changes, current, rule, revpool);
+    //MultiRule: loop start
+    //Replace all returns with continue,
+    bool isHandled = false;
+    foreach ( const MatchRuleList matchRules, allMatchRules ) {
+        // find the first rule that matches this pathname
+        MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
+        if (match != matchRules.constEnd()) {
+            const Rules::Match &rule = *match;
+            if ( exportDispatch(key, change, path_from, rev_from, changes, current, rule, matchRules, revpool) == EXIT_FAILURE )
+                return EXIT_FAILURE;
+            isHandled = true;
+        } else if (is_dir && path_from != NULL) {
+            qDebug() << current << "is a copy-with-history, auto-recursing";
+            if ( recurse(key, change, path_from, matchRules, rev_from, changes, revpool) == EXIT_FAILURE )
+                return EXIT_FAILURE;
+            isHandled = true;
+        } else if (is_dir && change->change_kind == svn_fs_path_change_delete) {
+            qDebug() << current << "deleted, auto-recursing";
+            if ( recurse(key, change, path_from, matchRules, rev_from, changes, revpool) == EXIT_FAILURE )
+                return EXIT_FAILURE;
+            isHandled = true;
+        }
     }
-
-    if (is_dir && path_from != NULL) {
-        qDebug() << current << "is a copy-with-history, auto-recursing";
-        return recurse(key, change, path_from, rev_from, changes, revpool);
-    } else if (is_dir && change->change_kind == svn_fs_path_change_delete) {
-        qDebug() << current << "deleted, auto-recursing";
-        return recurse(key, change, path_from, rev_from, changes, revpool);
-    } else if (wasDir(fs, revnum - 1, key, revpool)) {
+    if ( isHandled ) {
+        return EXIT_SUCCESS;
+    }
+    if (wasDir(fs, revnum - 1, key, revpool)) {
         qDebug() << current << "was a directory; ignoring";
     } else if (change->change_kind == svn_fs_path_change_delete) {
         qDebug() << current << "is being deleted but I don't know anything about it; ignoring";
@@ -571,14 +584,13 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
         qCritical() << current << "did not match any rules; cannot continue";
         return EXIT_FAILURE;
     }
-
     return EXIT_SUCCESS;
 }
 
 int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *change,
                                 const char *path_from, svn_revnum_t rev_from,
                                 apr_hash_t *changes, const QString &current,
-                                const Rules::Match &rule, apr_pool_t *pool)
+                                const Rules::Match &rule, const MatchRuleList &matchRules, apr_pool_t *pool)
 {
     //if(ruledebug)
     //  qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")";
@@ -590,23 +602,23 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
 
     case Rules::Match::Recurse:
         if(ruledebug)
-            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "recursing.";
-        return recurse(key, change, path_from, rev_from, changes, pool);
+            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.info() << "  " << "recursing.";
+        return recurse(key, change, path_from, matchRules, rev_from, changes, pool);
 
     case Rules::Match::Export:
         if(ruledebug)
-            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "exporting.";
-        if (exportInternal(key, change, path_from, rev_from, current, rule) == EXIT_SUCCESS)
+            qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.info() << "  " << "exporting.";
+        if (exportInternal(key, change, path_from, rev_from, current, rule, matchRules) == EXIT_SUCCESS)
             return EXIT_SUCCESS;
         if (change->change_kind != svn_fs_path_change_delete) {
             if(ruledebug)
-                qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.lineNumber << "(" << rule.rx.pattern() << ")" << "  " << "Unable to export non path removal.";
+                qDebug() << "rev" << revnum << qPrintable(current) << "matched rule:" << rule.info() << "  " << "Unable to export non path removal.";
             return EXIT_FAILURE;
         }
         // we know that the default action inside recurse is to recurse further or to ignore,
         // either of which is reasonably safe for deletion
         qWarning() << "deleting unknown path" << current << "; auto-recursing";
-        return recurse(key, change, path_from, rev_from, changes, pool);
+        return recurse(key, change, path_from, matchRules, rev_from, changes, pool);
     }
 
     // never reached
@@ -615,7 +627,7 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
 
 int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *change,
                                 const char *path_from, svn_revnum_t rev_from,
-                                const QString &current, const Rules::Match &rule)
+                                const QString &current, const Rules::Match &rule, const MatchRuleList &matchRules)
 {
     QString svnprefix, repository, branch, path;
     splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
@@ -752,7 +764,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 }
 
 int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
-                         const char *path_from, svn_revnum_t rev_from,
+                         const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                          apr_hash_t *changes, apr_pool_t *pool)
 {
     svn_fs_root_t *fs_root = this->fs_root;
@@ -803,13 +815,13 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
         if (match != matchRules.constEnd()) {
             if (exportDispatch(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
-                               rev_from, changes, current, *match, dirpool) == EXIT_FAILURE)
+                               rev_from, changes, current, *match, matchRules, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else {
             qDebug() << current << "rev" << revnum
                      << "did not match any rules; auto-recursing";
             if (recurse(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
-                        rev_from, changes, dirpool) == EXIT_FAILURE)
+                        matchRules, rev_from, changes, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         }
     }
