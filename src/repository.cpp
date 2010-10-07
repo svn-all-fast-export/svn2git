@@ -803,6 +803,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     modifiedFiles.append("\n");
 
     if (!CommandLineParser::instance()->contains("dry-run")) {
+        repository->startFastImport();
         repository->fastImport.writeNoLog("blob\nmark :");
         repository->fastImport.writeNoLog(QByteArray::number(mark));
         repository->fastImport.writeNoLog("\ndata ");
