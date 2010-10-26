@@ -84,9 +84,10 @@ public:
     const QList<Match> matchRules() const;
 
     void load();
-    QStringList readRules(const QString &filename) const;
 
 private:
+    void load(const QString &filename);
+
     QString filename;
     QList<Repository> m_repositories;
     QList<Match> m_matchRules;
