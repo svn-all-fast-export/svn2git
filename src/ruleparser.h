@@ -19,6 +19,7 @@
 #define RULEPARSER_H
 
 #include <QList>
+#include <QMap>
 #include <QRegExp>
 #include <QString>
 #include <QStringList>
@@ -91,6 +92,7 @@ private:
     QString filename;
     QList<Repository> m_repositories;
     QList<Match> m_matchRules;
+    QMap<QString,QString> m_variables;
 };
 
 class RulesList

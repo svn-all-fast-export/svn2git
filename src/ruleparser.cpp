@@ -98,8 +98,6 @@ void Rules::load(const QString &filename)
     QRegExp variableLine("\\$\\{(\\S+)\\}", Qt::CaseInsensitive);
     QRegExp includeLine("include\\s+(.*)", Qt::CaseInsensitive);
 
-    QMap<QString,QString> variables;
-
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
     Repository repo;
     Match match;
@@ -133,9 +131,9 @@ void Rules::load(const QString &filename)
         } else {
             int index = variableLine.indexIn(line);
             if ( index != -1 ) {
-                if (!variables.contains(variableLine.cap(1)))
+                if (!m_variables.contains(variableLine.cap(1)))
                     qFatal("Undeclared variable: %s", qPrintable(variableLine.cap(1)));
-                line = line.replace(variableLine, variables[variableLine.cap(1)]);
+                line = line.replace(variableLine, m_variables[variableLine.cap(1)]);
             }
             if (state == ReadingRepository) {
                 if (matchBranchLine.exactMatch(line)) {
@@ -226,7 +224,7 @@ void Rules::load(const QString &filename)
             } else if (isVariableRule) {
                 QString variable = declareLine.cap(1);
                 QString value = declareLine.cap(2);
-                variables.insert(variable, value);
+                m_variables.insert(variable, value);
             } else {
                 qFatal("Malformed line in rules file: line %d: %s",
                        lineNumber, qPrintable(origLine));
