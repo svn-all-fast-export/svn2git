@@ -668,7 +668,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
                           &prevbranch, &prevpath);
         } else {
-            qWarning() << "SVN reports a \"copy from\" but no matching rules found! Ignoring copy, treating as a modification";
+            qWarning() << "SVN reports a \"copy from\" from" << path_from << "but no matching rules found! Ignoring copy, treating as a modification";
             path_from = NULL;
         }
     }
