@@ -656,10 +656,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
     if (path_from != NULL) {
         previous = QString::fromUtf8(path_from);
-        AprAutoPool revpool(pool.data());
-        svn_boolean_t is_dir;
-        SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, path_from, revpool));
-        if (is_dir) {
+        if (wasDir(fs, rev_from, path_from, pool.data())) {
             previous += '/';
         }
         MatchRuleList::ConstIterator prevmatch =
