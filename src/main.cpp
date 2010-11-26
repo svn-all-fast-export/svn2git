@@ -63,12 +63,42 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
         line.truncate(space);
         result.insert(line, realname);
     };
+    file.close();
 
     return result;
 }
 
+QList<int> loadRevisionsFile( const QString &fileName )
+{
+    QList<int> revisions;
+    if(fileName.isEmpty())
+        return revisions;
+
+    QFile file(fileName);
+    if( !file.open(QIODevice::ReadOnly)) {
+        fprintf(stderr, "Could not open file %s: %s", qPrintable(fileName), qPrintable(file.errorString()));
+        return revisions;
+    }
+
+    while(!file.atEnd()) {
+        QByteArray line = file.readLine();
+        bool ok;
+        line = line.trimmed();
+        int rev = line.toInt(&ok);
+        if(!ok) {
+            fprintf(stderr, "Unable to convert %s to int, skipping revision.", qPrintable(QString(line)));
+        } else {
+            revisions.append(rev);
+        }
+    }
+    file.close();
+    qSort(revisions.begin(), revisions.end());
+    return revisions;
+}
+
 static const CommandLineOption options[] = {
     {"--identity-map FILENAME", "provide map between svn username and email"},
+    {"--revisions-file FILENAME", "provide a file with revision number that should be processed"},
     {"--rules FILENAME[,FILENAME]", "the rules file(s) that determines what goes where"},
     {"--add-metadata", "if passed, each git commit will have svn commit info"},
     {"--resume-from revision", "start importing at svn revision number"},
@@ -180,7 +210,17 @@ int main(int argc, char **argv)
         max_rev = svn.youngestRevision();
 
     bool errors = false;
+    QList<int> revisions = loadRevisionsFile(args->optionArgument(QLatin1String("revisions-file")));
+    const bool filerRevisions = !revisions.isEmpty();
     for (int i = min_rev; i <= max_rev; ++i) {
+        if(filerRevisions) {
+            if( !revisions.contains(i) ) {
+                printf(".");
+                continue;
+            } else {
+                printf("\n");
+            }
+        }
         if (!svn.exportRevision(i)) {
             errors = true;
             break;
