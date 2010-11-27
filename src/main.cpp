@@ -68,9 +68,9 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
     return result;
 }
 
-QList<int> loadRevisionsFile( const QString &fileName )
+QSet<int> loadRevisionsFile( const QString &fileName )
 {
-    QList<int> revisions;
+    QSet<int> revisions;
     if(fileName.isEmpty())
         return revisions;
 
@@ -88,11 +88,10 @@ QList<int> loadRevisionsFile( const QString &fileName )
         if(!ok) {
             fprintf(stderr, "Unable to convert %s to int, skipping revision.", qPrintable(QString(line)));
         } else {
-            revisions.append(rev);
+            revisions.insert(rev);
         }
     }
     file.close();
-    qSort(revisions.begin(), revisions.end());
     return revisions;
 }
 
@@ -210,7 +209,7 @@ int main(int argc, char **argv)
         max_rev = svn.youngestRevision();
 
     bool errors = false;
-    QList<int> revisions = loadRevisionsFile(args->optionArgument(QLatin1String("revisions-file")));
+    QSet<int> revisions = loadRevisionsFile(args->optionArgument(QLatin1String("revisions-file")));
     const bool filerRevisions = !revisions.isEmpty();
     for (int i = min_rev; i <= max_rev; ++i) {
         if(filerRevisions) {
