@@ -129,8 +129,7 @@ void Rules::load(const QString &filename)
             QString includeFile = filename.left( index + 1) + includeLine.cap(1);
             load(includeFile);
         } else {
-            int index = variableLine.indexIn(line);
-            if ( index != -1 ) {
+            while( variableLine.indexIn(line) != -1 ) {
                 if (!m_variables.contains(variableLine.cap(1)))
                     qFatal("Undeclared variable: %s", qPrintable(variableLine.cap(1)));
                 line = line.replace(variableLine, m_variables[variableLine.cap(1)]);
