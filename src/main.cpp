@@ -105,6 +105,7 @@ static const CommandLineOption options[] = {
     {"--dry-run", "don't actually write anything"},
     {"--debug-rules", "print what rule is being used for each file"},
     {"--commit-interval NUMBER", "if passed the cache will be flushed to git every NUMBER of commits"},
+    {"--stats", "after a run print some statistics about the rules"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},
     CommandLineLastOption
@@ -113,6 +114,7 @@ static const CommandLineOption options[] = {
 int main(int argc, char **argv)
 {
     CommandLineParser::init(argc, argv);
+    Stats::init();
     CommandLineParser::addOptionDefinitions(options);
     CommandLineParser *args = CommandLineParser::instance();
     if (args->contains(QLatin1String("help")) || args->arguments().count() != 1) {
@@ -230,6 +232,6 @@ int main(int argc, char **argv)
         repo->finalizeTags();
         delete repo;
     }
-
+    Stats::instance()->printStats();
     return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }

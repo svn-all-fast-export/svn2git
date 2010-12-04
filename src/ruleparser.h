@@ -73,7 +73,7 @@ public:
 
         Match() : minRevision(-1), maxRevision(-1), annotate(false), action(Ignore) { }
         const QString info() const {
-            const QString info = rx.pattern() % " (" % Rule::filename % ":" % QByteArray::number(Rule::lineNumber) % ")";
+            const QString info = Rule::filename % ":" % QByteArray::number(Rule::lineNumber) % " " % rx.pattern();
             return info;
         }
     };
@@ -83,12 +83,10 @@ public:
 
     const QList<Repository> repositories() const;
     const QList<Match> matchRules() const;
-
     void load();
 
 private:
     void load(const QString &filename);
-
     QString filename;
     QList<Repository> m_repositories;
     QList<Match> m_matchRules;
@@ -111,6 +109,24 @@ private:
   QList<Rules*> m_rules;
   QList<Rules::Repository> m_allrepositories;
   QList<QList<Rules::Match> > m_allMatchRules;
+};
+
+class Stats
+{
+public:
+    static Stats *instance();
+    void printStats() const;
+    void ruleMatched(const Rules::Match &rule, const int rev = -1);
+    void addRule( const Rules::Match &rule);
+    static void init();
+    ~Stats();
+
+private:
+    Stats();
+    class Private;
+    Private * const d;
+    static Stats *self;
+    bool use;
 };
 
 #ifndef QT_NO_DEBUG_STREAM

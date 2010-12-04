@@ -21,6 +21,7 @@
 #include <QDebug>
 
 #include "ruleparser.h"
+#include "CommandLineParser.h"
 
 RulesList::RulesList(const QString &filenames)
   : m_filenames(filenames)
@@ -193,6 +194,7 @@ void Rules::load(const QString &filename)
                     if (!match.repository.isEmpty())
                         match.action = Match::Export;
                     m_matchRules += match;
+                    Stats::instance()->addRule(match);
                     state = ReadingNone;
                     continue;
                 }
@@ -230,6 +232,92 @@ void Rules::load(const QString &filename)
             }
         }
     }
+}
+
+Stats *Stats::self = 0;
+
+class Stats::Private
+{
+public:
+    Private();
+
+    void printStats() const;
+    void ruleMatched(const Rules::Match &rule, const int rev);
+    void addRule(const Rules::Match &rule);
+private:
+    QMap<QString,int> m_usedRules;
+};
+
+Stats::Stats() : d(new Private())
+{
+    use = CommandLineParser::instance()->contains("stats");
+}
+
+Stats::~Stats()
+{
+    delete d;
+}
+
+void Stats::init()
+{
+    if(self)
+        delete self;
+    self = new Stats();
+}
+
+Stats* Stats::instance()
+{
+    return self;
+}
+
+void Stats::printStats() const
+{
+    if(use)
+        d->printStats();
+}
+
+void Stats::ruleMatched(const Rules::Match &rule, const int rev)
+{
+    if(use)
+        d->ruleMatched(rule, rev);
+}
+
+void Stats::addRule( const Rules::Match &rule)
+{
+    if(use)
+        d->addRule(rule);
+}
+
+Stats::Private::Private()
+{
+}
+
+void Stats::Private::printStats() const
+{
+    printf("\nRule stats\n");
+    foreach(const QString name, m_usedRules.keys()) {
+        printf("%s was matched %i times\n", qPrintable(name), m_usedRules[name]);
+    }
+}
+
+void Stats::Private::ruleMatched(const Rules::Match &rule, const int rev)
+{
+    Q_UNUSED(rev);
+    const QString name = rule.info();
+    if(!m_usedRules.contains(name)) {
+        m_usedRules.insert(name, 1);
+        qWarning() << "New match rule, should have been added when created.";
+    } else {
+        m_usedRules[name]++;
+    }
+}
+
+void Stats::Private::addRule( const Rules::Match &rule)
+{
+    const QString name = rule.info();
+    if(m_usedRules.contains(name))
+        qWarning() << "Rule" << name << "was added multiple times.";
+    m_usedRules.insert(name, 0);
 }
 
 #ifndef QT_NO_DEBUG_STREAM

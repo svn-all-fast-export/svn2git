@@ -190,6 +190,7 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
         if (it->action == Rules::Match::Recurse && ruleMask & NoRecurseRule)
             continue;
         if (it->rx.indexIn(current) == 0) {
+            Stats::instance()->ruleMatched(*it, revnum);
             return it;
         }
     }
@@ -664,6 +665,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         if (prevmatch != matchRules.constEnd()) {
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
                           &prevbranch, &prevpath);
+
         } else {
             qWarning() << "SVN reports a \"copy from\" @" << revnum << "from" << path_from << "@" << rev_from << "but no matching rules found! Ignoring copy, treating as a modification";
             path_from = NULL;
