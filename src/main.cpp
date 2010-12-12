@@ -114,8 +114,8 @@ static const CommandLineOption options[] = {
 int main(int argc, char **argv)
 {
     CommandLineParser::init(argc, argv);
-    Stats::init();
     CommandLineParser::addOptionDefinitions(options);
+    Stats::init();
     CommandLineParser *args = CommandLineParser::instance();
     if (args->contains(QLatin1String("help")) || args->arguments().count() != 1) {
         args->usage(QString(), "[Path to subversion repo]");
