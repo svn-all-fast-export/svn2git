@@ -538,8 +538,6 @@ int FastImportRepository::markFrom(const QString &branchFrom, int branchRevNum, 
 int FastImportRepository::createBranch(const QString &branch, int revnum,
                                      const QString &branchFrom, int branchRevNum)
 {
-    startFastImport();
-
     QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
     int mark = markFrom(branchFrom, branchRevNum, branchFromDesc);
 
@@ -567,14 +565,14 @@ int FastImportRepository::createBranch(const QString &branch, int revnum,
 
 int FastImportRepository::deleteBranch(const QString &branch, int revnum)
 {
-    startFastImport();
-
     static QByteArray null_sha(40, '0');
     return resetBranch(branch, revnum, 0, null_sha, "delete");
 }
 
 int FastImportRepository::resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment)
 {
+    startFastImport();
+
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
         branchRef.prepend("refs/heads/");
