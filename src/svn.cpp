@@ -44,6 +44,8 @@
 #include <svn_types.h>
 
 #include <QFile>
+#include <QLinkedList>
+#include <QPair>
 #include <QDebug>
 
 #include "repository.h"
@@ -451,6 +453,7 @@ int SvnPrivate::exportRevision(int revnum)
 
 int SvnRevision::prepareTransactions()
 {
+    QLinkedList< QPair<svn_fs_path_change_t*, const char*> > sortedChanges;
     // find out what was changed in this revision:
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed(&changes, fs_root, pool));
@@ -461,11 +464,20 @@ int SvnRevision::prepareTransactions()
         const char *key = reinterpret_cast<const char *>(vkey);
         svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
 
-        if (exportEntry(key, change, changes) == EXIT_FAILURE)
-            return EXIT_FAILURE;
+        // If we mix path deletions with path adds/replaces we might erase a branch after that it has been reset -> history truncated
+        if(change->change_kind == svn_fs_path_change_delete) {
+            sortedChanges.prepend( qMakePair(change, key) );
+        } else {
+            sortedChanges.append( qMakePair(change, key) );
+        }
     }
 
-    return EXIT_SUCCESS;
+    QPair<svn_fs_path_change_t*, const char*> pair;
+    foreach (pair, sortedChanges) {
+        if (exportEntry(pair.second, pair.first, changes) == EXIT_FAILURE)
+            return EXIT_FAILURE;
+    }
+        return EXIT_SUCCESS;
 }
 
 int SvnRevision::fetchRevProps()
