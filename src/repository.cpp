@@ -289,7 +289,8 @@ static QString marksFileName(QString name)
 }
 
 FastImportRepository::FastImportRepository(const Rules::Repository &rule)
-    : name(rule.name), fastImport(name), commitCount(0), outstandingTransactions(0),  last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
+    : name(rule.name), fastImport(name), commitCount(0), outstandingTransactions(0),
+      last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
