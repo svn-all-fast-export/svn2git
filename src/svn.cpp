@@ -506,6 +506,10 @@ int SvnRevision::commit()
     // now create the commit
     if (fetchRevProps() != EXIT_SUCCESS)
         return EXIT_FAILURE;
+    foreach (Repository *repo, repositories.values()) {
+        repo->commit();
+    }
+
     foreach (Repository::Transaction *txn, transactions) {
         txn->setAuthor(authorident);
         txn->setDateTime(epoch);

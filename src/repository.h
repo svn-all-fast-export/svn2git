@@ -142,6 +142,7 @@ public:
                             const QByteArray &author, uint dt,
                             const QByteArray &log);
     void finalizeTags();
+    void commit();
 
 private:
     struct Branch
@@ -167,6 +168,8 @@ private:
     LoggingQProcess fastImport;
     int commitCount;
     int outstandingTransactions;
+    QByteArray deletedBranches;
+    QByteArray resetBranches;
 
     /* starts at 0, and counts up.  */
     int last_commit_mark;

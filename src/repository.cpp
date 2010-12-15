@@ -344,8 +344,6 @@ int Repository::deleteBranch(const QString &branch, int revnum)
 
 int Repository::resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment)
 {
-    startFastImport();
-
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
         branchRef.prepend("refs/heads/");
@@ -355,19 +353,32 @@ int Repository::resetBranch(const QString &branch, int revnum, int mark, const Q
         QByteArray backupBranch = "refs/backups/r" + QByteArray::number(revnum) + branchRef.mid(4);
         qWarning() << "backing up branch" << branch << "to" << backupBranch;
 
-        fastImport.write("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
+        resetBranches.append("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
     }
 
     br.created = revnum;
     br.commits.append(revnum);
     br.marks.append(mark);
 
-    fastImport.write("reset " + branchRef + "\nfrom " + resetTo + "\n\n"
+    QByteArray cmd = "reset " + branchRef + "\nfrom " + resetTo + "\n\n"
                      "progress SVN r" + QByteArray::number(revnum)
                      + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
-                     + " # " + comment + "\n\n");
+                     + " # " + comment + "\n\n";
+    if(comment == "delete")
+        deletedBranches.append(cmd);
+    else
+        resetBranches.append(cmd);
 
     return EXIT_SUCCESS;
+}
+
+void Repository::commit()
+{
+    startFastImport();
+    fastImport.write(deletedBranches);
+    fastImport.write(resetBranches);
+    deletedBranches.clear();
+    resetBranches.clear();
 }
 
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
