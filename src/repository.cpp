@@ -28,225 +28,10 @@ static const int maxSimultaneousProcesses = 100;
 
 static const int maxMark = (1 << 20) - 1; // some versions of git-fast-import are buggy for larger values of maxMark
 
-class LoggingQProcess : public QProcess
-{
-    QFile log;
-    bool logging;
-public:
-    LoggingQProcess(const QString filename) : QProcess(), log() {
-        if(CommandLineParser::instance()->contains("debug-rules")) {
-            logging = true;
-            QString name = filename;
-            name.replace('/', '_');
-            name.prepend("gitlog-");
-            log.setFileName(name);
-            log.open(QIODevice::WriteOnly);
-        } else {
-            logging = false;
-        }
-    };
-    ~LoggingQProcess() {
-        if(logging) {
-            log.close();
-        }
-    };
-
-    qint64 write(const char *data) {
-        Q_ASSERT(state() == QProcess::Running);
-        if(logging) {
-            log.write(data);
-        }
-        return QProcess::write(data);
-    }
-    qint64 write(const char *data, qint64 length) {
-        Q_ASSERT(state() == QProcess::Running);
-        if(logging) {
-            log.write(data);
-        }
-        return QProcess::write(data, length);
-    }
-    qint64 write(const QByteArray &data) {
-        Q_ASSERT(state() == QProcess::Running);
-        if(logging) {
-            log.write(data);
-        }
-        return QProcess::write(data);
-    }
-    qint64 writeNoLog(const char *data) {
-        Q_ASSERT(state() == QProcess::Running);
-        return QProcess::write(data);
-    }
-    qint64 writeNoLog(const char *data, qint64 length) {
-        Q_ASSERT(state() == QProcess::Running);
-        return QProcess::write(data, length);
-    }
-    qint64 writeNoLog(const QByteArray &data) {
-        Q_ASSERT(state() == QProcess::Running);
-        return QProcess::write(data);
-    }
-    bool putChar( char c) {
-        Q_ASSERT(state() == QProcess::Running);
-        if(logging) {
-            log.putChar(c);
-        }
-        return QProcess::putChar(c);
-    }
-};
-
-
-class FastImportRepository : public Repository
+class ProcessCache: QLinkedList<Repository *>
 {
 public:
-    class Transaction : public Repository::Transaction
-    {
-        Q_DISABLE_COPY(Transaction)
-        friend class FastImportRepository;
-
-        FastImportRepository *repository;
-        QByteArray branch;
-        QByteArray svnprefix;
-        QByteArray author;
-        QByteArray log;
-        uint datetime;
-        int revnum;
-
-        QVector<int> merges;
-
-        QStringList deletedFiles;
-        QByteArray modifiedFiles;
-
-        inline Transaction() {}
-    public:
-        ~Transaction();
-        void commit();
-
-        void setAuthor(const QByteArray &author);
-        void setDateTime(uint dt);
-        void setLog(const QByteArray &log);
-
-        void noteCopyFromBranch (const QString &prevbranch, int revFrom);
-
-        void deleteFile(const QString &path);
-        QIODevice *addFile(const QString &path, int mode, qint64 length);
-    };
-    FastImportRepository(const Rules::Repository &rule);
-    int setupIncremental(int &cutoff);
-    void restoreLog();
-    ~FastImportRepository();
-
-    void reloadBranches();
-    int createBranch(const QString &branch, int revnum,
-                     const QString &branchFrom, int revFrom);
-    int deleteBranch(const QString &branch, int revnum);
-    Repository::Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum);
-
-    void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,
-                            const QByteArray &author, uint dt,
-                            const QByteArray &log);
-    void finalizeTags();
-
-private:
-    struct Branch
-    {
-        int created;
-        QVector<int> commits;
-        QVector<int> marks;
-    };
-    struct AnnotatedTag
-    {
-        QString supportingRef;
-        QByteArray svnprefix;
-        QByteArray author;
-        QByteArray log;
-        uint dt;
-        int revnum;
-    };
-
-    QHash<QString, Branch> branches;
-    QHash<QString, AnnotatedTag> annotatedTags;
-    QString name;
-    LoggingQProcess fastImport;
-    int commitCount;
-    int outstandingTransactions;
-
-    /* starts at 0, and counts up.  */
-    int last_commit_mark;
-
-    /* starts at maxMark and counts down. Reset after each SVN revision */
-    int next_file_mark;
-
-    bool processHasStarted;
-
-    void startFastImport();
-    void closeFastImport();
-
-    // called when a transaction is deleted
-    void forgetTransaction(Transaction *t);
-
-    int resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment);
-    int markFrom(const QString &branchFrom, int branchRevNum, QByteArray &desc);
-
-    friend class ProcessCache;
-    Q_DISABLE_COPY(FastImportRepository)
-};
-
-class PrefixingRepository : public Repository
-{
-    Repository *repo;
-    QString prefix;
-public:
-    class Transaction : public Repository::Transaction
-    {
-        Q_DISABLE_COPY(Transaction)
-
-        Repository::Transaction *txn;
-        QString prefix;
-    public:
-        Transaction(Repository::Transaction *t, const QString &p) : txn(t), prefix(p) {}
-        ~Transaction() { delete txn; }
-        void commit() { txn->commit(); }
-
-        void setAuthor(const QByteArray &author) { txn->setAuthor(author); }
-        void setDateTime(uint dt) { txn->setDateTime(dt); }
-        void setLog(const QByteArray &log) { txn->setLog(log); }
-
-        void noteCopyFromBranch (const QString &prevbranch, int revFrom)
-        { txn->noteCopyFromBranch(prevbranch, revFrom); }
-
-        void deleteFile(const QString &path) { txn->deleteFile(prefix + path); }
-        QIODevice *addFile(const QString &path, int mode, qint64 length)
-        { return txn->addFile(prefix + path, mode, length); }
-    };
-
-    PrefixingRepository(Repository *r, const QString &p) : repo(r), prefix(p) {}
-
-    int setupIncremental(int &) { return 1; }
-    void restoreLog() {}
-
-    int createBranch(const QString &branch, int revnum,
-                     const QString &branchFrom, int revFrom)
-    { return repo->createBranch(branch, revnum, branchFrom, revFrom); }
-
-    int deleteBranch(const QString &branch, int revnum)
-    { return repo->deleteBranch(branch, revnum); }
-
-    Repository::Transaction *newTransaction(const QString &branch, const QString &svnprefix, int revnum)
-    {
-        Repository::Transaction *t = repo->newTransaction(branch, svnprefix, revnum);
-        return new Transaction(t, prefix);
-    }
-
-    void createAnnotatedTag(const QString &name, const QString &svnprefix, int revnum,
-                            const QByteArray &author, uint dt,
-                            const QByteArray &log)
-    { repo->createAnnotatedTag(name, svnprefix, revnum, author, dt, log); }
-    void finalizeTags() { /* loop that called this will invoke it on 'repo' too */ }
-};
-
-class ProcessCache: QLinkedList<FastImportRepository *>
-{
-public:
-    void touch(FastImportRepository *repo)
+    void touch(Repository *repo)
     {
         remove(repo);
 
@@ -258,7 +43,7 @@ public:
         append(repo);
     }
 
-    inline void remove(FastImportRepository *repo)
+    inline void remove(Repository *repo)
     {
 #if QT_VERSION >= 0x040400
         removeOne(repo);
@@ -269,18 +54,6 @@ public:
 };
 static ProcessCache processCache;
 
-Repository *makeRepository(const Rules::Repository &rule, const QHash<QString, Repository *> &repositories)
-{
-    if (rule.forwardTo.isEmpty())
-        return new FastImportRepository(rule);
-    Repository *r = repositories[rule.forwardTo];
-    if (!r) {
-        qCritical() << "no repository with name" << rule.forwardTo << "found at" << rule.info();
-        return r;
-    }
-    return new PrefixingRepository(r, rule.prefix);
-}
-
 static QString marksFileName(QString name)
 {
     name.replace('/', '_');
@@ -288,8 +61,8 @@ static QString marksFileName(QString name)
     return name;
 }
 
-FastImportRepository::FastImportRepository(const Rules::Repository &rule)
-    : name(rule.name), fastImport(name), commitCount(0), outstandingTransactions(0),
+Repository::Repository(const Rules::Repository &rule)
+    : name(rule.name), prefix(rule.forwardTo), fastImport(name), commitCount(0), outstandingTransactions(0),
       last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
@@ -375,7 +148,7 @@ static int lastValidMark(QString name)
     return prev_mark;
 }
 
-int FastImportRepository::setupIncremental(int &cutoff)
+int Repository::setupIncremental(int &cutoff)
 {
     QFile logfile(logFileName(name));
     if (!logfile.exists())
@@ -455,7 +228,7 @@ int FastImportRepository::setupIncremental(int &cutoff)
     return cutoff;
 }
 
-void FastImportRepository::restoreLog()
+void Repository::restoreLog()
 {
     QString file = logFileName(name);
     QString bkup = file + ".old";
@@ -465,13 +238,13 @@ void FastImportRepository::restoreLog()
     QFile::rename(bkup, file);
 }
 
-FastImportRepository::~FastImportRepository()
+Repository::~Repository()
 {
     Q_ASSERT(outstandingTransactions == 0);
     closeFastImport();
 }
 
-void FastImportRepository::closeFastImport()
+void Repository::closeFastImport()
 {
     if (fastImport.state() != QProcess::NotRunning) {
         fastImport.write("checkpoint\n");
@@ -487,7 +260,7 @@ void FastImportRepository::closeFastImport()
     processCache.remove(this);
 }
 
-void FastImportRepository::reloadBranches()
+void Repository::reloadBranches()
 {
     foreach (QString branch, branches.keys()) {
         Branch &br = branches[branch];
@@ -505,7 +278,7 @@ void FastImportRepository::reloadBranches()
     }
 }
 
-int FastImportRepository::markFrom(const QString &branchFrom, int branchRevNum, QByteArray &branchFromDesc)
+int Repository::markFrom(const QString &branchFrom, int branchRevNum, QByteArray &branchFromDesc)
 {
     Branch &brFrom = branches[branchFrom];
     if (!brFrom.created)
@@ -535,7 +308,7 @@ int FastImportRepository::markFrom(const QString &branchFrom, int branchRevNum, 
     return brFrom.marks[it - brFrom.commits.begin()];
 }
 
-int FastImportRepository::createBranch(const QString &branch, int revnum,
+int Repository::createBranch(const QString &branch, int revnum,
                                      const QString &branchFrom, int branchRevNum)
 {
     QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
@@ -563,13 +336,13 @@ int FastImportRepository::createBranch(const QString &branch, int revnum,
     return resetBranch(branch, revnum, mark, branchFromRef, branchFromDesc);
 }
 
-int FastImportRepository::deleteBranch(const QString &branch, int revnum)
+int Repository::deleteBranch(const QString &branch, int revnum)
 {
     static QByteArray null_sha(40, '0');
     return resetBranch(branch, revnum, 0, null_sha, "delete");
 }
 
-int FastImportRepository::resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment)
+int Repository::resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment)
 {
     startFastImport();
 
@@ -597,7 +370,7 @@ int FastImportRepository::resetBranch(const QString &branch, int revnum, int mar
     return EXIT_SUCCESS;
 }
 
-Repository::Transaction *FastImportRepository::newTransaction(const QString &branch, const QString &svnprefix,
+Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
                                                     int revnum)
 {
     startFastImport();
@@ -622,13 +395,13 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
     return txn;
 }
 
-void FastImportRepository::forgetTransaction(Transaction *)
+void Repository::forgetTransaction(Transaction *)
 {
     if (!--outstandingTransactions)
         next_file_mark = maxMark;
 }
 
-void FastImportRepository::createAnnotatedTag(const QString &ref, const QString &svnprefix,
+void Repository::createAnnotatedTag(const QString &ref, const QString &svnprefix,
                                     int revnum,
                                     const QByteArray &author, uint dt,
                                     const QByteArray &log)
@@ -651,7 +424,7 @@ void FastImportRepository::createAnnotatedTag(const QString &ref, const QString 
     tag.dt = dt;
 }
 
-void FastImportRepository::finalizeTags()
+void Repository::finalizeTags()
 {
     if (annotatedTags.isEmpty())
         return;
@@ -698,7 +471,7 @@ void FastImportRepository::finalizeTags()
     printf("\n");
 }
 
-void FastImportRepository::startFastImport()
+void Repository::startFastImport()
 {
     processCache.touch(this);
 
@@ -728,27 +501,27 @@ void FastImportRepository::startFastImport()
     }
 }
 
-FastImportRepository::Transaction::~Transaction()
+Repository::Transaction::~Transaction()
 {
     repository->forgetTransaction(this);
 }
 
-void FastImportRepository::Transaction::setAuthor(const QByteArray &a)
+void Repository::Transaction::setAuthor(const QByteArray &a)
 {
     author = a;
 }
 
-void FastImportRepository::Transaction::setDateTime(uint dt)
+void Repository::Transaction::setDateTime(uint dt)
 {
     datetime = dt;
 }
 
-void FastImportRepository::Transaction::setLog(const QByteArray &l)
+void Repository::Transaction::setLog(const QByteArray &l)
 {
     log = l;
 }
 
-void FastImportRepository::Transaction::noteCopyFromBranch(const QString &branchFrom, int branchRevNum)
+void Repository::Transaction::noteCopyFromBranch(const QString &branchFrom, int branchRevNum)
 {
     if(branch == branchFrom) {
         qWarning() << "Cannot merge inside a branch";
@@ -776,15 +549,15 @@ void FastImportRepository::Transaction::noteCopyFromBranch(const QString &branch
     }
 }
 
-void FastImportRepository::Transaction::deleteFile(const QString &path)
+void Repository::Transaction::deleteFile(const QString &path)
 {
-    QString pathNoSlash = path;
+    QString pathNoSlash = repository->prefix + path;
     if(pathNoSlash.endsWith('/'))
         pathNoSlash.chop(1);
     deletedFiles.append(pathNoSlash);
 }
 
-QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int mode, qint64 length)
+QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint64 length)
 {
     int mark = repository->next_file_mark--;
 
@@ -798,7 +571,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     modifiedFiles.append(" :");
     modifiedFiles.append(QByteArray::number(mark));
     modifiedFiles.append(' ');
-    modifiedFiles.append(path.toUtf8());
+    modifiedFiles.append(repository->prefix + path.toUtf8());
     modifiedFiles.append("\n");
 
     if (!CommandLineParser::instance()->contains("dry-run")) {
@@ -813,7 +586,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     return &repository->fastImport;
 }
 
-void FastImportRepository::Transaction::commit()
+void Repository::Transaction::commit()
 {
     repository->startFastImport();
 
