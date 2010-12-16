@@ -392,9 +392,10 @@ public:
     QByteArray log;
     uint epoch;
     bool ruledebug;
+    bool propsFetched;
 
     SvnRevision(int revision, svn_fs_t *f, apr_pool_t *parent_pool)
-        : pool(parent_pool), fs(f), fs_root(0), revnum(revision)
+        : pool(parent_pool), fs(f), fs_root(0), revnum(revision), propsFetched(false)
     {
         ruledebug = CommandLineParser::instance()->contains( QLatin1String("debug-rules"));
     }
@@ -482,6 +483,9 @@ int SvnRevision::prepareTransactions()
 
 int SvnRevision::fetchRevProps()
 {
+    if( propsFetched )
+        return EXIT_SUCCESS;
+
     apr_hash_t *revprops;
     SVN_ERR(svn_fs_revision_proplist(&revprops, fs, revnum, pool));
     svn_string_t *svnauthor = (svn_string_t*)apr_hash_get(revprops, "svn:author", APR_HASH_KEY_STRING);
@@ -498,6 +502,7 @@ int SvnRevision::fetchRevProps()
             authorident = svnauthor->data + QByteArray(" <") +
                           svnauthor->data + QByteArray("@localhost>");
     }
+    propsFetched = true;
     return EXIT_SUCCESS;
 }
 
