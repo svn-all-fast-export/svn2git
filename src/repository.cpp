@@ -648,7 +648,7 @@ void Repository::Transaction::commit()
     QByteArray desc = "";
     int i = !!parentmark;	// if parentmark != 0, there's at least one parent
 
-    if(log.contains("This commit was manufactured by cvs2svn to create ")) {
+    if(log.contains("This commit was manufactured by cvs2svn to create ") && !merges.isEmpty()) {
         qSort(merges);
         repository->fastImport.write("merge :" + QByteArray::number(merges.last()) + "\n");
         merges.pop_back();
