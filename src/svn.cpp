@@ -634,7 +634,7 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
         }
         // we know that the default action inside recurse is to recurse further or to ignore,
         // either of which is reasonably safe for deletion
-        qWarning() << "deleting unknown path" << current << "; auto-recursing";
+        qWarning() << "WARN: deleting unknown path" << current << "; auto-recursing";
         return recurse(key, change, path_from, matchRules, rev_from, changes, pool);
     }
 
@@ -683,7 +683,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                           &prevbranch, &prevpath);
 
         } else {
-            qWarning() << "SVN reports a \"copy from\" @" << revnum << "from" << path_from << "@" << rev_from << "but no matching rules found! Ignoring copy, treating as a modification";
+            qWarning() << "WARN: SVN reports a \"copy from\" @" << revnum << "from" << path_from << "@" << rev_from << "but no matching rules found! Ignoring copy, treating as a modification";
             path_from = NULL;
         }
     }
@@ -697,7 +697,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                      << qPrintable(prevbranch) << "subdir"
                      << qPrintable(prevpath);
         } else if (prevrepository != repository) {
-            qWarning() << qPrintable(current) << "rev" << revnum
+            qWarning() << "WARN:" << qPrintable(current) << "rev" << revnum
                        << "is a cross-repository copy (from repository"
                        << qPrintable(prevrepository) << "branch"
                        << qPrintable(prevbranch) << "path"
@@ -791,7 +791,7 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
     svn_node_kind_t kind;
     SVN_ERR(svn_fs_check_path(&kind, fs_root, path, pool));
     if(kind == svn_node_none) {
-        qWarning() << "Trying to recurse using a nonexistant path" << path << ", ignoring";
+        qWarning() << "WARN: Trying to recurse using a nonexistant path" << path << ", ignoring";
         return EXIT_SUCCESS;
     }
 

@@ -185,12 +185,12 @@ int Repository::setupIncremental(int &cutoff)
             goto beyond_cutoff;
 
         if (revnum < last_revnum)
-            qWarning() << name << "revision numbers are not monotonic: "
+            qWarning() << "WARN:" << name << "revision numbers are not monotonic: "
                        << "got" << QString::number(last_revnum)
                        << "and then" << QString::number(revnum);
 
         if (mark > last_valid_mark) {
-            qWarning() << name << "unknown commit mark found: rewinding -- did you hit Ctrl-C?";
+            qWarning() << "WARN:" << name << "unknown commit mark found: rewinding -- did you hit Ctrl-C?";
             cutoff = revnum;
             goto beyond_cutoff;
         }
@@ -253,7 +253,7 @@ void Repository::closeFastImport()
         if (!fastImport.waitForFinished()) {
             fastImport.terminate();
             if (!fastImport.waitForFinished(200))
-                qWarning() << "git-fast-import for repository" << name << "did not die";
+                qWarning() << "WARN: git-fast-import for repository" << name << "did not die";
         }
     }
     processHasStarted = false;
@@ -323,7 +323,7 @@ int Repository::createBranch(const QString &branch, int revnum,
 
     QByteArray branchFromRef = ":" + QByteArray::number(mark);
     if (!mark) {
-        qWarning() << branch << "in repository" << name << "is branching but no exported commits exist in repository"
+        qWarning() << "WARN:" << branch << "in repository" << name << "is branching but no exported commits exist in repository"
                 << "creating an empty branch.";
         branchFromRef = branchFrom.toUtf8();
         if (!branchFromRef.startsWith("refs/"))
@@ -351,7 +351,7 @@ int Repository::resetBranch(const QString &branch, int revnum, int mark, const Q
     Branch &br = branches[branch];
     if (br.created && br.created != revnum && !br.marks.isEmpty() && br.marks.last()) {
         QByteArray backupBranch = "refs/backups/r" + QByteArray::number(revnum) + branchRef.mid(4);
-        qWarning() << "backing up branch" << branch << "to" << backupBranch;
+        qWarning() << "WARN: backing up branch" << branch << "to" << backupBranch;
 
         resetBranches.append("reset " + backupBranch + "\nfrom " + branchRef + "\n\n");
     }
@@ -386,7 +386,7 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
 {
     startFastImport();
     if (!branches.contains(branch)) {
-        qWarning() << "Transaction:" << branch << "is not a known branch in repository" << name << endl
+        qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << endl
                    << "Going to create it automatically";
     }
 
@@ -535,7 +535,7 @@ void Repository::Transaction::setLog(const QByteArray &l)
 void Repository::Transaction::noteCopyFromBranch(const QString &branchFrom, int branchRevNum)
 {
     if(branch == branchFrom) {
-        qWarning() << "Cannot merge inside a branch";
+        qWarning() << "WARN: Cannot merge inside a branch";
         return;
     }
     static QByteArray dummy;
@@ -543,13 +543,13 @@ void Repository::Transaction::noteCopyFromBranch(const QString &branchFrom, int 
     Q_ASSERT(dummy.isEmpty());
 
     if (mark == -1) {
-        qWarning() << branch << "is copying from branch" << branchFrom
+        qWarning() << "WARN:" << branch << "is copying from branch" << branchFrom
                     << "but the latter doesn't exist.  Continuing, assuming the files exist.";
     } else if (mark == 0) {
-    qWarning() << "Unknown revision r" << QByteArray::number(branchRevNum)
+    qWarning() << "WARN: Unknown revision r" << QByteArray::number(branchRevNum)
                << ".  Continuing, assuming the files exist.";
     } else {
-        qWarning() << "repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
+        qWarning() << "WARN: repository " + repository->name + " branch " + branch + " has some files copied from " + branchFrom + "@" + QByteArray::number(branchRevNum);
 
         if (!merges.contains(mark)) {
             merges.append(mark);
@@ -621,7 +621,7 @@ void Repository::Transaction::commit()
     if (br.created && !br.marks.isEmpty() && br.marks.last()) {
         parentmark = br.marks.last();
     } else {
-        qWarning() << "Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
+        qWarning() << "WARN: Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
                    << revnum << "-- did you resume from the wrong revision?";
         br.created = revnum;
     }

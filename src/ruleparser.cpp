@@ -306,7 +306,7 @@ void Stats::Private::ruleMatched(const Rules::Match &rule, const int rev)
     const QString name = rule.info();
     if(!m_usedRules.contains(name)) {
         m_usedRules.insert(name, 1);
-        qWarning() << "New match rule, should have been added when created.";
+        qWarning() << "WARN: New match rule, should have been added when created.";
     } else {
         m_usedRules[name]++;
     }
@@ -316,7 +316,7 @@ void Stats::Private::addRule( const Rules::Match &rule)
 {
     const QString name = rule.info();
     if(m_usedRules.contains(name))
-        qWarning() << "Rule" << name << "was added multiple times.";
+        qWarning() << "WARN: Rule" << name << "was added multiple times.";
     m_usedRules.insert(name, 0);
 }
 

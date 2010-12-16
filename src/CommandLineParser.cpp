@@ -81,7 +81,7 @@ void CommandLineParser::Private::addDefinitions(const CommandLineOption * option
         if (option.indexOf(QLatin1Char(',')) >= 0 && ( option.indexOf(QLatin1Char('[')) < 0 || option.indexOf(QLatin1Char(']')) < 0) ) {
             QStringList optionParts = option.split(QLatin1Char(','), QString::SkipEmptyParts);
             if (optionParts.count() != 2) {
-                qWarning() << "option definition '" << option << "' is faulty; only one ',' allowed";
+                qWarning() << "WARN: option definition '" << option << "' is faulty; only one ',' allowed";
                 continue;
             }
             foreach (QString s, optionParts) {
@@ -91,7 +91,7 @@ void CommandLineParser::Private::addDefinitions(const CommandLineOption * option
                 else if (s.startsWith(QLatin1String("-")) && s.length() > 1)
                     definition.shortName = s.at(1);
                 else {
-                    qWarning() << "option definition '" << option << "' is faulty; the option should start with a -";
+                    qWarning() << "WARN: option definition '" << option << "' is faulty; the option should start with a -";
                     break;
                 }
             }
@@ -99,7 +99,7 @@ void CommandLineParser::Private::addDefinitions(const CommandLineOption * option
         else if (option.startsWith(QLatin1String("--")) && option.length() > 2)
             definition.name = option.mid(2);
         else
-            qWarning() << "option definition '" << option << "' has unrecognized format. See the api docs for CommandLineParser for a howto";
+            qWarning() << "WARN: option definition '" << option << "' has unrecognized format. See the api docs for CommandLineParser for a howto";
 
         if(definition.name.isEmpty())
             continue;
@@ -292,7 +292,7 @@ void CommandLineParser::init(int argc, char **argv)
 void CommandLineParser::addOptionDefinitions(const CommandLineOption * optionList)
 {
     if (!self) {
-        qWarning() << "CommandLineParser:: Use init before addOptionDefinitions!";
+        qWarning() << "WARN: CommandLineParser:: Use init before addOptionDefinitions!";
         return;
     }
     self->d->addDefinitions(optionList);
@@ -308,7 +308,7 @@ CommandLineParser *CommandLineParser::instance()
 void CommandLineParser::setArgumentDefinition(const char *definition)
 {
     if (!self) {
-        qWarning() << "CommandLineParser:: Use init before addOptionDefinitions!";
+        qWarning() << "WARN: CommandLineParser:: Use init before addOptionDefinitions!";
         return;
     }
     self->d->setArgumentDefinition(definition);
