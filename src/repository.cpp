@@ -647,28 +647,36 @@ void Repository::Transaction::commit()
     // note some of the inferred merges
     QByteArray desc = "";
     int i = !!parentmark;	// if parentmark != 0, there's at least one parent
-    foreach (int merge, merges) {
-        if (merge == parentmark) {
-            qDebug() << "Skipping marking" << merge << "as a merge point as it matches the parent";
-            continue;
-        }
 
-        if (++i > 16) {
-            // FIXME: options:
-            //   (1) ignore the 16 parent limit
-            //   (2) don't emit more than 16 parents
-            //   (3) create another commit on branch to soak up additional parents
-            // we've chosen option (2) for now, since only artificial commits
-            // created by cvs2svn seem to have this issue
-            qWarning() << "too many merge parents";
-           break;
-        }
+    if(log.contains("This commit was manufactured by cvs2svn to create ")) {
+        qSort(merges);
+        repository->fastImport.write("merge :" + QByteArray::number(merges.last()) + "\n");
+        merges.pop_back();
+        qWarning() << "WARN: Discarding all but the highest merge point as a workaround for cvs2svn created branch/tag"
+                      << "Discarded marks:" << merges;
+    } else {
+        foreach (const int merge, merges) {
+            if (merge == parentmark) {
+                qDebug() << "Skipping marking" << merge << "as a merge point as it matches the parent";
+                continue;
+            }
 
-        QByteArray m = " :" + QByteArray::number(merge);
-        desc += m;
-        repository->fastImport.write("merge" + m + "\n");
+            if (++i > 16) {
+                // FIXME: options:
+                //   (1) ignore the 16 parent limit
+                //   (2) don't emit more than 16 parents
+                //   (3) create another commit on branch to soak up additional parents
+                // we've chosen option (2) for now, since only artificial commits
+                // created by cvs2svn seem to have this issue
+                qWarning() << "WARN: too many merge parents";
+                break;
+            }
+
+            QByteArray m = " :" + QByteArray::number(merge);
+            desc += m;
+            repository->fastImport.write("merge" + m + "\n");
+        }
     }
-
     // write the file deletions
     if (deletedFiles.contains(""))
         repository->fastImport.write("deleteall\n");
