@@ -384,7 +384,6 @@ void Repository::commit()
 Repository::Transaction *Repository::newTransaction(const QString &branch, const QString &svnprefix,
                                                     int revnum)
 {
-    startFastImport();
     if (!branches.contains(branch)) {
         qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << endl
                    << "Going to create it automatically";
@@ -398,6 +397,7 @@ Repository::Transaction *Repository::newTransaction(const QString &branch, const
     txn->revnum = revnum;
 
     if ((++commitCount % CommandLineParser::instance()->optionArgument(QLatin1String("commit-interval"), QLatin1String("10000")).toInt()) == 0) {
+        startFastImport();
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
         qDebug() << "checkpoint!, marks file trunkated";
