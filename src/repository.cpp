@@ -459,12 +459,12 @@ void Repository::finalizeTags()
             if (!branchRef.startsWith("refs/"))
                 branchRef.prepend("refs/heads/");
 
-            QTextStream s(&fastImport);
-            s << "progress Creating annotated tag " << tagName << " from ref " << branchRef << endl
-              << "tag " << tagName << endl
-              << "from " << branchRef << endl
-              << "tagger " << QString::fromUtf8(tag.author) << ' ' << tag.dt << " -0000" << endl
-              << "data " << message.length() << endl;
+            QByteArray s = "progress Creating annotated tag " + tagName.toUtf8() + " from ref " + branchRef + "\n"
+              + "tag " + tagName.toUtf8() + "\n"
+              + "from " + branchRef + "\n"
+              + "tagger " + tag.author + ' ' + QByteArray::number(tag.dt) + " -0000" + "\n"
+              + "data " + QByteArray::number( message.length() ) + "\n";
+            fastImport.write(s);
         }
 
         fastImport.write(message);
