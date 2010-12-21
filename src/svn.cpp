@@ -730,6 +730,21 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 
             if (repo->createBranch(branch, revnum, prevbranch, rev_from) == EXIT_FAILURE)
                 return EXIT_FAILURE;
+
+            Repository::Transaction *txn = transactions.value(repository + branch, 0);
+            if (!txn) {
+                txn = repo->newTransaction(branch, svnprefix, revnum);
+                if (!txn)
+                    return EXIT_FAILURE;
+
+                transactions.insert(repository + branch, txn);
+            }
+            if(CommandLineParser::instance()->contains("svn-branches")) {
+                if(ruledebug)
+                    qDebug() << "Create a true SVN copy of branch (" << key << "->" << branch << path << ")";
+                txn->deleteFile(path);
+                recursiveDumpDir(txn, fs_root, key, path, pool);
+            }
             if (rule.annotate) {
                 // create an annotated tag
                 fetchRevProps();
