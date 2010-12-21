@@ -6,6 +6,14 @@ SVN_INCLUDE = /usr/include/subversion-1 /usr/local/include/subversion-1
 APR_INCLUDE = /usr/include/apr-1.0 /usr/include/apr-1 /usr/local/include/apr-1
 exists(local-config.pri):include(local-config.pri)
 
+VERSION = $$system(git --no-pager show --pretty=oneline --no-notes | head -1 | cut -b-40)
+    !isEmpty(VERSION){
+      VERSION = $${VERSION}
+    }
+
+VERSTR = '\\"$${VERSION}\\"'  # place quotes around the version string
+DEFINES += VER=\"$${VERSTR}\" # create a VER macro containing the version string
+
 TEMPLATE = app
 TARGET = ../svn-all-fast-export
 DEPENDPATH += .
