@@ -374,6 +374,9 @@ int Repository::resetBranch(const QString &branch, int revnum, int mark, const Q
 
 void Repository::commit()
 {
+    if (deletedBranches.isEmpty() && resetBranches.isEmpty()) {
+        return;
+    }
     startFastImport();
     fastImport.write(deletedBranches);
     fastImport.write(resetBranches);
