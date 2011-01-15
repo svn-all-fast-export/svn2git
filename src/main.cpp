@@ -114,6 +114,10 @@ static const CommandLineOption options[] = {
 
 int main(int argc, char **argv)
 {
+    printf("Invoked as:'");
+    for(int i = 0; i < argc; ++i)
+        printf(" %s", argv[i]);
+    printf("'\n");
     CommandLineParser::init(argc, argv);
     CommandLineParser::addOptionDefinitions(options);
     Stats::init();
