@@ -68,27 +68,51 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
     return result;
 }
 
-QSet<int> loadRevisionsFile( const QString &fileName )
+QSet<int> loadRevisionsFile( const QString &fileName, Svn &svn )
 {
+    QRegExp revint("(\\d+)\\s*(?:-\\s*(\\d+|HEAD))?");
     QSet<int> revisions;
     if(fileName.isEmpty())
         return revisions;
 
     QFile file(fileName);
     if( !file.open(QIODevice::ReadOnly)) {
-        fprintf(stderr, "Could not open file %s: %s", qPrintable(fileName), qPrintable(file.errorString()));
+        fprintf(stderr, "Could not open file %s: %s\n", qPrintable(fileName), qPrintable(file.errorString()));
         return revisions;
     }
 
+    bool ok;
     while(!file.atEnd()) {
-        QByteArray line = file.readLine();
-        bool ok;
-        line = line.trimmed();
-        int rev = line.toInt(&ok);
-        if(!ok) {
-            fprintf(stderr, "Unable to convert %s to int, skipping revision.", qPrintable(QString(line)));
+        QByteArray line = file.readLine().trimmed();
+        revint.indexIn(line);
+        if( revint.cap(2).isEmpty() ) {
+            int rev = revint.cap(1).toInt(&ok);
+            if(ok) {
+                revisions.insert(rev);
+            } else {
+                fprintf(stderr, "Unable to convert %s to int, skipping revision.\n", qPrintable(QString(line)));
+            }
+        } else if( revint.captureCount() == 2 ) {
+            int rev = revint.cap(1).toInt(&ok);
+            if(!ok) {
+                fprintf(stderr, "Unable to convert %s (%s) to int, skipping revisions.\n", qPrintable(revint.cap(1)), qPrintable(QString(line)));
+                continue;
+            }
+            int lastrev = 0;
+            if(revint.cap(2) == "HEAD") {
+                lastrev = svn.youngestRevision();
+                ok = true;
+            } else {
+                lastrev = revint.cap(2).toInt(&ok);
+            }
+            if(!ok) {
+                fprintf(stderr, "Unable to convert %s (%s) to int, skipping revisions.\n", qPrintable(revint.cap(2)), qPrintable(QString(line)));
+                continue;
+            }
+            for(; rev <= lastrev; ++rev )
+                revisions.insert(rev);
         } else {
-            revisions.insert(rev);
+            fprintf(stderr, "Unable to convert %s to int, skipping revision.\n", qPrintable(QString(line)));
         }
     }
     file.close();
@@ -220,7 +244,7 @@ int main(int argc, char **argv)
         max_rev = svn.youngestRevision();
 
     bool errors = false;
-    QSet<int> revisions = loadRevisionsFile(args->optionArgument(QLatin1String("revisions-file")));
+    QSet<int> revisions = loadRevisionsFile(args->optionArgument(QLatin1String("revisions-file")), svn);
     const bool filerRevisions = !revisions.isEmpty();
     for (int i = min_rev; i <= max_rev; ++i) {
         if(filerRevisions) {
