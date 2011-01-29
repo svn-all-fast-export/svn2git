@@ -637,6 +637,7 @@ void Repository::Transaction::commit()
             branchRef.prepend("refs/heads/");
 
         QTextStream s(&repository->fastImport);
+        s.setCodec("UTF-8");
         s << "commit " << branchRef << endl;
         s << "mark :" << QByteArray::number(mark) << endl;
         s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
