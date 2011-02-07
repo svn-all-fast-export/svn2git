@@ -393,6 +393,7 @@ public:
     uint epoch;
     bool ruledebug;
     bool propsFetched;
+    bool needCommit;
 
     SvnRevision(int revision, svn_fs_t *f, apr_pool_t *parent_pool)
         : pool(parent_pool), fs(f), fs_root(0), revnum(revision), propsFetched(false)
@@ -440,7 +441,7 @@ int SvnPrivate::exportRevision(int revnum)
     if (rev.prepareTransactions() == EXIT_FAILURE)
         return EXIT_FAILURE;
 
-    if (rev.transactions.isEmpty()) {
+    if (!rev.needCommit) {
         printf(" nothing to do\n");
         return EXIT_SUCCESS;    // no changes?
     }
@@ -651,6 +652,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
                                 const char *path_from, svn_revnum_t rev_from,
                                 const QString &current, const Rules::Match &rule, const MatchRuleList &matchRules)
 {
+    needCommit = true;
     QString svnprefix, repository, branch, path;
     splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
 
