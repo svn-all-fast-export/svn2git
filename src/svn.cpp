@@ -394,6 +394,7 @@ public:
     bool ruledebug;
     bool propsFetched;
     bool needCommit;
+    static uint last_epoch;
 
     SvnRevision(int revision, svn_fs_t *f, apr_pool_t *parent_pool)
         : pool(parent_pool), fs(f), fs_root(0), revnum(revision), propsFetched(false)
@@ -423,6 +424,7 @@ public:
                 const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                 apr_hash_t *changes, apr_pool_t *pool);
 };
+uint SvnRevision::last_epoch = 0;
 
 int SvnPrivate::exportRevision(int revnum)
 {
@@ -495,7 +497,7 @@ int SvnRevision::fetchRevProps()
 
     log = svnlog->data;
     authorident = svnauthor ? identities.value(svnauthor->data) : QByteArray();
-    epoch = get_epoch(svndate->data);
+    epoch = svndate ? get_epoch(svndate->data) : last_epoch;
     if (authorident.isEmpty()) {
         if (!svnauthor || svn_string_isempty(svnauthor))
             authorident = "nobody <nobody@localhost>";
@@ -504,6 +506,7 @@ int SvnRevision::fetchRevProps()
                           svnauthor->data + QByteArray("@localhost>");
     }
     propsFetched = true;
+    last_epoch = epoch;
     return EXIT_SUCCESS;
 }
 
