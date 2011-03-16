@@ -365,7 +365,7 @@ static bool wasDir(svn_fs_t *fs, int revnum, const char *pathname, apr_pool_t *p
     return is_dir;
 }
 
-time_t get_epoch(char *svn_date)
+time_t get_epoch(const char* svn_date)
 {
     struct tm tm;
     memset(&tm, 0, sizeof tm);
@@ -493,9 +493,9 @@ int SvnRevision::fetchRevProps()
     svn_string_t *svndate = (svn_string_t*)apr_hash_get(revprops, "svn:date", APR_HASH_KEY_STRING);
     svn_string_t *svnlog = (svn_string_t*)apr_hash_get(revprops, "svn:log", APR_HASH_KEY_STRING);
 
-    log = (char *)svnlog->data;
-    authorident = svnauthor ? identities.value((char *)svnauthor->data) : QByteArray();
-    epoch = get_epoch((char*)svndate->data);
+    log = svnlog->data;
+    authorident = svnauthor ? identities.value(svnauthor->data) : QByteArray();
+    epoch = get_epoch(svndate->data);
     if (authorident.isEmpty()) {
         if (!svnauthor || svn_string_isempty(svnauthor))
             authorident = "nobody <nobody@localhost>";
