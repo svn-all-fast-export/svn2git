@@ -495,7 +495,7 @@ int SvnRevision::fetchRevProps()
     svn_string_t *svndate = (svn_string_t*)apr_hash_get(revprops, "svn:date", APR_HASH_KEY_STRING);
     svn_string_t *svnlog = (svn_string_t*)apr_hash_get(revprops, "svn:log", APR_HASH_KEY_STRING);
 
-    log = svnlog->data;
+    log = svnlog ? QByteArray(svnlog->data) : QByteArray();
     authorident = svnauthor ? identities.value(svnauthor->data) : QByteArray();
     epoch = svndate ? get_epoch(svndate->data) : last_epoch;
     if (authorident.isEmpty()) {
