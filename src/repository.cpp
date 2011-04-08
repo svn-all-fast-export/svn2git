@@ -351,7 +351,11 @@ int Repository::resetBranch(const QString &branch, int revnum, int mark, const Q
     Branch &br = branches[branch];
     QByteArray backupCmd;
     if (br.created && br.created != revnum && !br.marks.isEmpty() && br.marks.last()) {
-        QByteArray backupBranch = "refs/backups/r" + QByteArray::number(revnum) + branchRef.mid(4);
+        QByteArray backupBranch;
+        if ((comment == "delete") && branchRef.startsWith("refs/heads/"))
+            backupBranch = "refs/tags/backups/" + branchRef.mid(11) + "@" + QByteArray::number(revnum);
+        else
+            backupBranch = "refs/backups/r" + QByteArray::number(revnum) + branchRef.mid(4);
         qWarning() << "WARN: backing up branch" << branch << "to" << backupBranch;
 
         backupCmd = "reset " + backupBranch + "\nfrom " + branchRef + "\n\n";
