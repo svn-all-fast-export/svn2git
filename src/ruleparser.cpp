@@ -98,7 +98,7 @@ void Rules::load(const QString &filename)
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchPrefixLine("prefix\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp declareLine("declare\\s+("+varRegex+")\\s*=\\s*(\\S+)", Qt::CaseInsensitive);
-    QRegExp variableLine("\\$\\{("+varRegex+")\\}", Qt::CaseInsensitive);
+    QRegExp variableLine("\\$\\{("+varRegex+")(\\|[^}$]*)?\\}", Qt::CaseInsensitive);
     QRegExp includeLine("include\\s+(.*)", Qt::CaseInsensitive);
 
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
@@ -133,9 +133,17 @@ void Rules::load(const QString &filename)
             load(includeFile);
         } else {
             while( variableLine.indexIn(line) != -1 ) {
-                if (!m_variables.contains(variableLine.cap(1)))
-                    qFatal("Undeclared variable: %s", qPrintable(variableLine.cap(1)));
-                line = line.replace(variableLine, m_variables[variableLine.cap(1)]);
+                QString replacement;
+                if (m_variables.contains(variableLine.cap(1))) {
+                    replacement = m_variables[variableLine.cap(1)];
+                } else {
+                    if (variableLine.cap(2).startsWith('|')) {
+                        replacement = variableLine.cap(2).mid(1);
+                    } else {
+                        qFatal("Undeclared variable: %s", qPrintable(variableLine.cap(1)));
+                    }
+                }
+                line = line.replace(variableLine, replacement);
             }
             if (state == ReadingRepository) {
                 if (matchBranchLine.exactMatch(line)) {
