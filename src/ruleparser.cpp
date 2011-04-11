@@ -88,6 +88,8 @@ void Rules::load(const QString &filename)
     // initialize the regexps we will use
     QRegExp repoLine("create repository\\s+(\\S+)", Qt::CaseInsensitive);
 
+    QString varRegex("[A-Za-z0-9_]+");
+
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchActionLine("action\\s+(\\w+)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
@@ -95,8 +97,8 @@ void Rules::load(const QString &filename)
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchPrefixLine("prefix\\s+(\\S+)", Qt::CaseInsensitive);
-    QRegExp declareLine("declare\\s+(\\S+)\\s*=\\s*(\\S+)", Qt::CaseInsensitive);
-    QRegExp variableLine("\\$\\{(\\S+)\\}", Qt::CaseInsensitive);
+    QRegExp declareLine("declare\\s+("+varRegex+")\\s*=\\s*(\\S+)", Qt::CaseInsensitive);
+    QRegExp variableLine("\\$\\{("+varRegex+")\\}", Qt::CaseInsensitive);
     QRegExp includeLine("include\\s+(.*)", Qt::CaseInsensitive);
 
     enum { ReadingNone, ReadingRepository, ReadingMatch } state = ReadingNone;
