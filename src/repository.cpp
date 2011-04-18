@@ -470,7 +470,7 @@ void Repository::finalizeTags()
             QByteArray s = "progress Creating annotated tag " + tagName.toUtf8() + " from ref " + branchRef + "\n"
               + "tag " + tagName.toUtf8() + "\n"
               + "from " + branchRef + "\n"
-              + "tagger " + tag.author + ' ' + QByteArray::number(tag.dt) + " -0000" + "\n"
+              + "tagger " + tag.author + ' ' + QByteArray::number(tag.dt) + " +0000" + "\n"
               + "data " + QByteArray::number( message.length() ) + "\n";
             fastImport.write(s);
         }
@@ -645,7 +645,7 @@ void Repository::Transaction::commit()
         s.setCodec("UTF-8");
         s << "commit " << branchRef << endl;
         s << "mark :" << QByteArray::number(mark) << endl;
-        s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl;
+        s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " +0000" << endl;
 
         s << "data " << message.length() << endl;
     }
