@@ -93,6 +93,7 @@ void Rules::load(const QString &filename)
     QRegExp matchLine("match\\s+(.*)", Qt::CaseInsensitive);
     QRegExp matchActionLine("action\\s+(\\w+)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
+    QRegExp matchDescLine("description\\s+(.+)$", Qt::CaseInsensitive);
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
@@ -151,6 +152,9 @@ void Rules::load(const QString &filename)
                     branch.name = matchBranchLine.cap(1);
 
                     repo.branches += branch;
+                    continue;
+                } else if (matchDescLine.exactMatch(line)) {
+                    repo.description = matchDescLine.cap(1);
                     continue;
                 } else if (matchRepoLine.exactMatch(line)) {
                     repo.forwardTo = matchRepoLine.cap(1);

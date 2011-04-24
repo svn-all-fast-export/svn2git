@@ -84,6 +84,15 @@ Repository::Repository(const Rules::Repository &rule)
             init.setWorkingDirectory(name);
             init.start("git", QStringList() << "--bare" << "init");
             init.waitForFinished(-1);
+            // Write description
+            if (!rule.description.isEmpty()) {
+                QFile fDesc(QDir(name).filePath("description"));
+                if (fDesc.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+                    fDesc.write(rule.description.toUtf8());
+                    fDesc.putChar('\n');
+                    fDesc.close();
+                }
+            }
             {
                 QFile marks(name + "/" + marksFileName(name));
                 marks.open(QIODevice::WriteOnly);

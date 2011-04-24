@@ -43,6 +43,7 @@ public:
 
         QString name;
         QList<Branch> branches;
+        QString description;
 
         QString forwardTo;
         QString prefix;
