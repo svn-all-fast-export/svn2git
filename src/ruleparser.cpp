@@ -77,6 +77,48 @@ const QList<Rules::Match> Rules::matchRules() const
     return m_matchRules;
 }
 
+Rules::Match::Substitution Rules::parseSubstitution(const QString &string)
+{
+    if (string.at(0) != 's' || string.length() < 5)
+        return Match::Substitution();
+
+    const QChar sep = string.at(1);
+
+    if (string.at(string.length() - 1) != sep)
+        return Match::Substitution();
+
+    int i = 2, end = 0;
+    Match::Substitution subst;
+
+    // Separator might have been escaped with a backslash
+    while (i > end) {
+        int backslashCount = 0;
+        if ((end = string.indexOf(sep, i)) > -1) {
+            for (i = end - 1; i >= 2; i--) {
+                if (string.at(i) == '\\')
+                    backslashCount++;
+                else
+                    break;
+            }
+        } else {
+            return Match::Substitution(); // error
+        }
+
+        if (backslashCount % 2 != 0) {
+            // Separator was escaped. Search for another one
+            i = end + 1;
+        }
+    }
+
+    // Found the end of the pattern
+    subst.pattern = QRegExp(string.mid(2, end - 2));
+    if (!subst.pattern.isValid())
+        return Match::Substitution(); // error
+    subst.replacement = string.mid(end + 1, string.length() - 1 - end - 1);
+
+    return subst;
+}
+
 void Rules::load()
 {
     load(filename);
@@ -94,7 +136,9 @@ void Rules::load(const QString &filename)
     QRegExp matchActionLine("action\\s+(\\w+)", Qt::CaseInsensitive);
     QRegExp matchRepoLine("repository\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchDescLine("description\\s+(.+)$", Qt::CaseInsensitive);
+    QRegExp matchRepoSubstLine("substitute repository\\s+(.+)$", Qt::CaseInsensitive);
     QRegExp matchBranchLine("branch\\s+(\\S+)", Qt::CaseInsensitive);
+    QRegExp matchBranchSubstLine("substitute branch\\s+(.+)$", Qt::CaseInsensitive);
     QRegExp matchRevLine("(min|max) revision (\\d+)", Qt::CaseInsensitive);
     QRegExp matchAnnotateLine("annotated\\s+(\\S+)", Qt::CaseInsensitive);
     QRegExp matchPrefixLine("prefix\\s+(\\S+)", Qt::CaseInsensitive);
@@ -178,6 +222,22 @@ void Rules::load(const QString &filename)
                     continue;
                 } else if (matchBranchLine.exactMatch(line)) {
                     match.branch = matchBranchLine.cap(1);
+                    continue;
+                } else if (matchRepoSubstLine.exactMatch(line)) {
+                    Match::Substitution subst = parseSubstitution(matchRepoSubstLine.cap(1));
+                    if (!subst.isValid()) {
+                        qFatal("Malformed substitution in rules file: line %d: %s",
+                            lineNumber, qPrintable(origLine));
+                    }
+                    match.repo_substs += subst;
+                    continue;
+                } else if (matchBranchSubstLine.exactMatch(line)) {
+                    Match::Substitution subst = parseSubstitution(matchBranchSubstLine.cap(1));
+                    if (!subst.isValid()) {
+                        qFatal("Malformed substitution in rules file: line %d: %s",
+                            lineNumber, qPrintable(origLine));
+                    }
+                    match.branch_substs += subst;
                     continue;
                 } else if (matchRevLine.exactMatch(line)) {
                     if (matchRevLine.cap(1) == "min")

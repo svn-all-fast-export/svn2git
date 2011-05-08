@@ -58,9 +58,19 @@ public:
 
     struct Match : Rule
     {
+        struct Substitution {
+            QRegExp pattern;
+            QString replacement;
+
+            bool isValid() { return !pattern.isEmpty(); }
+            QString& apply(QString &string) { return string.replace(pattern, replacement); }
+        };
+
         QRegExp rx;
         QString repository;
+        QList<Substitution> repo_substs;
         QString branch;
+        QList<Substitution> branch_substs;
         QString prefix;
         int minRevision;
         int maxRevision;
@@ -84,6 +94,7 @@ public:
 
     const QList<Repository> repositories() const;
     const QList<Match> matchRules() const;
+    Match::Substitution parseSubstitution(const QString &string);
     void load();
 
 private:

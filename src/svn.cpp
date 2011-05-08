@@ -214,11 +214,17 @@ static void splitPathName(const Rules::Match &rule, const QString &pathName, QSt
     if (repository_p) {
         *repository_p = svnprefix;
         repository_p->replace(rule.rx, rule.repository);
+        foreach (Rules::Match::Substitution subst, rule.repo_substs) {
+            subst.apply(*repository_p);
+        }
     }
 
     if (branch_p) {
         *branch_p = svnprefix;
         branch_p->replace(rule.rx, rule.branch);
+        foreach (Rules::Match::Substitution subst, rule.branch_substs) {
+            subst.apply(*branch_p);
+        }
     }
 
     if (path_p) {
