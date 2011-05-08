@@ -126,6 +126,9 @@ public:
 
         void deleteFile(const QString &path);
         QIODevice *addFile(const QString &path, int mode, qint64 length);
+
+        void commitNote(const QByteArray &noteText, bool append,
+                        const QByteArray &commit = QByteArray());
     };
     Repository(const Rules::Repository &rule);
     int setupIncremental(int &cutoff);
@@ -144,12 +147,20 @@ public:
     void finalizeTags();
     void commit();
 
+    static QByteArray formatMetadataMessage(const QByteArray &svnprefix, int revnum,
+                                            const QByteArray &tag = QByteArray());
+
+    bool branchExists(const QString& branch) const;
+    const QByteArray branchNote(const QString& branch) const;
+    void setBranchNote(const QString& branch, const QByteArray& noteText);
+
 private:
     struct Branch
     {
         int created;
         QVector<int> commits;
         QVector<int> marks;
+        QByteArray note;
     };
     struct AnnotatedTag
     {

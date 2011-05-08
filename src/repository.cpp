@@ -342,6 +342,9 @@ int Repository::createBranch(const QString &branch, int revnum,
 
     qDebug() << "Creating branch:" << branch << "from" << branchFrom << "(" << branchRevNum << branchFromDesc << ")";
 
+    // Preserve note
+    branches[branch].note = branches.value(branchFrom).note;
+
     return resetBranch(branch, revnum, mark, branchFromRef, branchFromDesc);
 }
 
@@ -469,7 +472,7 @@ void Repository::finalizeTags()
         if (!message.endsWith('\n'))
             message += '\n';
         if (CommandLineParser::instance()->contains("add-metadata"))
-            message += "\nsvn path=" + tag.svnprefix + "; revision=" + QByteArray::number(tag.revnum) + "\n";
+            message += "\n" + formatMetadataMessage(tag.svnprefix, tag.revnum, tagName.toUtf8());
 
         {
             QByteArray branchRef = tag.supportingRef.toUtf8();
@@ -488,6 +491,19 @@ void Repository::finalizeTags()
         fastImport.putChar('\n');
         if (!fastImport.waitForBytesWritten(-1))
             qFatal("Failed to write to process: %s", qPrintable(fastImport.errorString()));
+
+        // Append note to the tip commit of the supporting ref. There is no
+        // easy way to attach a note to the tag itself with fast-import.
+        if (CommandLineParser::instance()->contains("add-metadata-notes")) {
+            Repository::Transaction *txn = newTransaction(tag.supportingRef, tag.svnprefix, tag.revnum);
+            txn->setAuthor(tag.author);
+            txn->setDateTime(tag.dt);
+            txn->commitNote(formatMetadataMessage(tag.svnprefix, tag.revnum, tagName.toUtf8()), true);
+            delete txn;
+
+            if (!fastImport.waitForBytesWritten(-1))
+                qFatal("Failed to write to process: %s", qPrintable(fastImport.errorString()));
+        }
 
         printf(" %s", qPrintable(tagName));
         fflush(stdout);
@@ -527,6 +543,31 @@ void Repository::startFastImport()
 
         reloadBranches();
     }
+}
+
+QByteArray Repository::formatMetadataMessage(const QByteArray &svnprefix, int revnum, const QByteArray &tag)
+{
+    QByteArray msg = "svn path=" + svnprefix + "; revision=" + QByteArray::number(revnum);
+    if (!tag.isEmpty())
+        msg += "; tag=" + tag;
+    msg += "\n";
+    return msg;
+}
+
+bool Repository::branchExists(const QString& branch) const\
+{
+    return branches.contains(branch);
+}
+
+const QByteArray Repository::branchNote(const QString& branch) const
+{
+    return branches.value(branch).note;
+}
+
+void Repository::setBranchNote(const QString& branch, const QByteArray& noteText)
+{
+    if (branches.contains(branch))
+        branches[branch].note = noteText;
 }
 
 Repository::Transaction::~Transaction()
@@ -614,6 +655,37 @@ QIODevice *Repository::Transaction::addFile(const QString &path, int mode, qint6
     return &repository->fastImport;
 }
 
+void Repository::Transaction::commitNote(const QByteArray &noteText, bool append, const QByteArray &commit)
+{
+    QByteArray branchRef = branch;
+    if (!branchRef.startsWith("refs/"))
+        branchRef.prepend("refs/heads/");
+    const QByteArray &commitRef = commit.isNull() ? branchRef : commit;
+    QByteArray message = "Adding Git note for current " + commitRef + "\n";
+    QByteArray text = noteText;
+
+    if (append && commit.isNull() &&
+        repository->branchExists(branch) &&
+        !repository->branchNote(branch).isEmpty())
+    {
+        text = repository->branchNote(branch) + text;
+        message = "Appending Git note for current " + commitRef + "\n";
+    }
+
+    QTextStream s(&repository->fastImport);
+    s << "commit refs/notes/commits" << endl
+      << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl
+      << "data " << message.length() << endl
+      << message << endl
+      << "N inline " << commitRef << endl
+      <<  "data " << text.length() << endl
+      << text << endl;
+
+    if (commit.isNull()) {
+        repository->setBranchNote(QString::fromUtf8(branch), text);
+    }
+}
+
 void Repository::Transaction::commit()
 {
     repository->startFastImport();
@@ -631,7 +703,7 @@ void Repository::Transaction::commit()
     if (!message.endsWith('\n'))
         message += '\n';
     if (CommandLineParser::instance()->contains("add-metadata"))
-        message += "\nsvn path=" + svnprefix + "; revision=" + QByteArray::number(revnum) + "\n";
+        message += "\n" + Repository::formatMetadataMessage(svnprefix, revnum);
 
     int parentmark = 0;
     Branch &br = repository->branches[branch];
@@ -649,7 +721,6 @@ void Repository::Transaction::commit()
         QByteArray branchRef = branch;
         if (!branchRef.startsWith("refs/"))
             branchRef.prepend("refs/heads/");
-
         QTextStream s(&repository->fastImport);
         s.setCodec("UTF-8");
         s << "commit " << branchRef << endl;
@@ -712,6 +783,10 @@ void Repository::Transaction::commit()
     printf(" %d modifications from SVN %s to %s/%s",
            deletedFiles.count() + modifiedFiles.count('\n'), svnprefix.data(),
            qPrintable(repository->name), branch.data());
+
+    // Commit metadata note if requested
+    if (CommandLineParser::instance()->contains("add-metadata-notes"))
+        commitNote(Repository::formatMetadataMessage(svnprefix, revnum), false);
 
     while (repository->fastImport.bytesToWrite())
         if (!repository->fastImport.waitForBytesWritten(-1))

@@ -124,6 +124,7 @@ static const CommandLineOption options[] = {
     {"--revisions-file FILENAME", "provide a file with revision number that should be processed"},
     {"--rules FILENAME[,FILENAME]", "the rules file(s) that determines what goes where"},
     {"--add-metadata", "if passed, each git commit will have svn commit info"},
+    {"--add-metadata-notes", "if passed, each git commit will have notes with svn commit info"},
     {"--resume-from revision", "start importing at svn revision number"},
     {"--max-rev revision", "stop importing at svn revision number"},
     {"--dry-run", "don't actually write anything"},
