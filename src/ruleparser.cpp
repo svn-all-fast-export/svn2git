@@ -188,7 +188,7 @@ void Rules::load(const QString &filename)
                         qFatal("Undeclared variable: %s", qPrintable(variableLine.cap(1)));
                     }
                 }
-                line = line.replace(variableLine, replacement);
+                line = line.replace(variableLine.cap(0), replacement);
             }
             if (state == ReadingRepository) {
                 if (matchBranchLine.exactMatch(line)) {
