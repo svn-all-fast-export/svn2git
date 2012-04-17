@@ -554,7 +554,7 @@ QByteArray Repository::formatMetadataMessage(const QByteArray &svnprefix, int re
     return msg;
 }
 
-bool Repository::branchExists(const QString& branch) const\
+bool Repository::branchExists(const QString& branch) const
 {
     return branches.contains(branch);
 }
