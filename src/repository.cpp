@@ -674,7 +674,7 @@ void Repository::Transaction::commitNote(const QByteArray &noteText, bool append
 
     QTextStream s(&repository->fastImport);
     s << "commit refs/notes/commits" << endl
-      << "committer " << QString::fromUtf8(author) << ' ' << datetime << " -0000" << endl
+      << "committer " << QString::fromUtf8(author) << ' ' << datetime << " +0000" << endl
       << "data " << message.length() << endl
       << message << endl
       << "N inline " << commitRef << endl
