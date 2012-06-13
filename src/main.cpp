@@ -55,12 +55,18 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
         // Support git-svn author files, too
         // - svn2git native:  loginname Joe User <user@example.com>
         // - git-svn:         loginname = Joe User <user@example.com>
-        int rightspace = space;
-        if (line.indexOf(" = ") == space)
-            rightspace += 2;
+        int rightspace = line.indexOf(" = ");
+        int leftspace = space;
+        if (rightspace == -1) {
+            rightspace = space;
+        } else {
+          leftspace = rightspace;
+          rightspace += 2;
+        }
 
         QByteArray realname = line.mid(rightspace).trimmed();
-        line.truncate(space);
+        line.truncate(leftspace);
+
         result.insert(line, realname);
     };
     file.close();
