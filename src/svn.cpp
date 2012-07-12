@@ -833,8 +833,6 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         apr_hash_this(i, &vkey, NULL, &value);
 
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-        if (dirent->kind != svn_node_dir)
-            continue;           // not a directory, so can't recurse; skip
 
         QByteArray entry = path + QByteArray("/") + dirent->name;
         QByteArray entryFrom;
@@ -861,11 +859,13 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
                                rev_from, changes, current, *match, matchRules, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else {
-            qDebug() << current << "rev" << revnum
-                     << "did not match any rules; auto-recursing";
-            if (recurse(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
-                        matchRules, rev_from, changes, dirpool) == EXIT_FAILURE)
-                return EXIT_FAILURE;
+            if (dirent->kind == svn_node_dir) {
+                qDebug() << current << "rev" << revnum
+                         << "did not match any rules; auto-recursing";
+                if (recurse(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
+                            matchRules, rev_from, changes, dirpool) == EXIT_FAILURE)
+                    return EXIT_FAILURE;
+            }
         }
     }
 
