@@ -821,6 +821,9 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
     if(kind == svn_node_none) {
         qWarning() << "WARN: Trying to recurse using a nonexistant path" << path << ", ignoring";
         return EXIT_SUCCESS;
+    } else if(kind != svn_node_dir) {
+        qWarning() << "WARN: Trying to recurse using a non-directory path" << path << ", ignoring";
+        return EXIT_SUCCESS;
     }
 
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, path, pool));
