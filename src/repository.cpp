@@ -26,7 +26,7 @@
 
 static const int maxSimultaneousProcesses = 100;
 
-static const int maxMark = (1 << 20) - 1; // some versions of git-fast-import are buggy for larger values of maxMark
+static const int maxMark = (1 << 20) - 2; // some versions of git-fast-import are buggy for larger values of maxMark
 
 class ProcessCache: QLinkedList<Repository *>
 {
@@ -271,11 +271,14 @@ void Repository::closeFastImport()
 
 void Repository::reloadBranches()
 {
+    bool reset_notes = false;
     foreach (QString branch, branches.keys()) {
         Branch &br = branches[branch];
 
         if (br.marks.isEmpty() || !br.marks.last())
             continue;
+
+	reset_notes = true;
 
         QByteArray branchRef = branch.toUtf8();
         if (!branchRef.startsWith("refs/"))
@@ -284,6 +287,13 @@ void Repository::reloadBranches()
         fastImport.write("reset " + branchRef +
                         "\nfrom :" + QByteArray::number(br.marks.last()) + "\n\n"
                         "progress Branch " + branchRef + " reloaded\n");
+    }
+
+    if (reset_notes &&
+	CommandLineParser::instance()->contains("add-metadata-notes")) {
+      fastImport.write("reset refs/notes/commits\nfrom :" +
+		       QByteArray::number(maxMark + 1) +
+		       "\n");
     }
 }
 
@@ -674,6 +684,7 @@ void Repository::Transaction::commitNote(const QByteArray &noteText, bool append
 
     QTextStream s(&repository->fastImport);
     s << "commit refs/notes/commits" << endl
+      << "mark :" << QByteArray::number(maxMark + 1) << endl
       << "committer " << QString::fromUtf8(author) << ' ' << datetime << " +0000" << endl
       << "data " << message.length() << endl
       << message << endl
