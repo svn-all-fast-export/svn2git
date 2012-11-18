@@ -44,8 +44,6 @@
 #include <svn_types.h>
 
 #include <QFile>
-#include <QLinkedList>
-#include <QPair>
 #include <QDebug>
 
 #include "repository.h"
