@@ -682,15 +682,16 @@ void Repository::Transaction::commitNote(const QByteArray &noteText, bool append
         message = "Appending Git note for current " + commitRef + "\n";
     }
 
-    QTextStream s(&repository->fastImport);
-    s << "commit refs/notes/commits" << endl
-      << "mark :" << QByteArray::number(maxMark + 1) << endl
-      << "committer " << QString::fromUtf8(author) << ' ' << datetime << " +0000" << endl
-      << "data " << message.length() << endl
-      << message << endl
-      << "N inline " << commitRef << endl
-      <<  "data " << text.length() << endl
-      << text << endl;
+    QByteArray s("");
+    s.append("commit refs/notes/commits\n");
+    s.append("mark :" + QByteArray::number(maxMark + 1) + "\n");
+    s.append("committer " + QString::fromUtf8(author) + " " + QString::number(datetime) + " +0000" + "\n");
+    s.append("data " + QString::number(message.length()) + "\n");
+    s.append(message + "\n");
+    s.append("N inline " + commitRef + "\n");
+    s.append("data " + QString::number(text.length()) + "\n");
+    s.append(text + "\n");
+    repository->fastImport.write(s);
 
     if (commit.isNull()) {
         repository->setBranchNote(QString::fromUtf8(branch), text);
@@ -728,21 +729,17 @@ void Repository::Transaction::commit()
     br.commits.append(revnum);
     br.marks.append(mark);
 
-    {
-        QByteArray branchRef = branch;
-        if (!branchRef.startsWith("refs/"))
-            branchRef.prepend("refs/heads/");
-        QTextStream s(&repository->fastImport);
-        s.setCodec("UTF-8");
-        s << "commit " << branchRef << endl;
-        s << "mark :" << QByteArray::number(mark) << endl;
-        s << "committer " << QString::fromUtf8(author) << ' ' << datetime << " +0000" << endl;
+    QByteArray branchRef = branch;
+    if (!branchRef.startsWith("refs/"))
+        branchRef.prepend("refs/heads/");
 
-        s << "data " << message.length() << endl;
-    }
-
-    repository->fastImport.write(message);
-    repository->fastImport.putChar('\n');
+    QByteArray s("");
+    s.append("commit " + branchRef + "\n");
+    s.append("mark :" + QByteArray::number(mark) + "\n");
+    s.append("committer " + QString::fromUtf8(author) + " " + QString::number(datetime) + " +0000" + "\n");
+    s.append("data " + QString::number(message.length()) + "\n");
+    s.append(message + "\n");
+    repository->fastImport.write(s);
 
     // note some of the inferred merges
     QByteArray desc = "";
