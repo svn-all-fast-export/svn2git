@@ -79,6 +79,7 @@ public:
     QList<MatchRuleList> allMatchRules;
     RepositoryHash repositories;
     IdentityHash identities;
+    QString userdomain;
 
     SvnPrivate(const QString &pathToRepository);
     ~SvnPrivate();
@@ -128,6 +129,11 @@ void Svn::setRepositories(const RepositoryHash &repositories)
 void Svn::setIdentityMap(const IdentityHash &identityMap)
 {
     d->identities = identityMap;
+}
+
+void Svn::setIdentityDomain(const QString &identityDomain)
+{
+    d->userdomain = identityDomain;
 }
 
 int Svn::youngestRevision()
@@ -388,6 +394,7 @@ public:
     QList<MatchRuleList> allMatchRules;
     RepositoryHash repositories;
     IdentityHash identities;
+    QString userdomain;
 
     svn_fs_t *fs;
     svn_fs_root_t *fs_root;
@@ -436,6 +443,7 @@ int SvnPrivate::exportRevision(int revnum)
     rev.allMatchRules = allMatchRules;
     rev.repositories = repositories;
     rev.identities = identities;
+    rev.userdomain = userdomain;
 
     // open this revision:
     printf("Exporting revision %d ", revnum);
@@ -506,8 +514,8 @@ int SvnRevision::fetchRevProps()
         if (!svnauthor || svn_string_isempty(svnauthor))
             authorident = "nobody <nobody@localhost>";
         else
-            authorident = svnauthor->data + QByteArray(" <") +
-                          svnauthor->data + QByteArray("@localhost>");
+            authorident = svnauthor->data + QByteArray(" <") + svnauthor->data +
+                QByteArray("@") + userdomain.toUtf8() + QByteArray(">");
     }
     propsFetched = true;
     return EXIT_SUCCESS;
@@ -769,18 +777,6 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
             return EXIT_FAILURE;
 
         transactions.insert(repository + branch, txn);
-    }
-
-    //
-    // If this path was copied from elsewhere, use it to infer _some_
-    // merge points.  This heuristic is fairly useful for tracking
-    // changes across directory re-organizations and wholesale branch
-    // imports.
-    //
-    if (path_from != NULL && prevrepository == repository && prevbranch != branch) {
-        if(ruledebug)
-            qDebug() << "copy from branch" << prevbranch << "to branch" << branch << "@rev" << rev_from;
-        txn->noteCopyFromBranch (prevbranch, rev_from);
     }
 
     if (change->change_kind == svn_fs_path_change_replace && path_from == NULL) {

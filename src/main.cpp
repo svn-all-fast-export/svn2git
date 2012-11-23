@@ -127,6 +127,7 @@ QSet<int> loadRevisionsFile( const QString &fileName, Svn &svn )
 
 static const CommandLineOption options[] = {
     {"--identity-map FILENAME", "provide map between svn username and email"},
+    {"--identity-domain DOMAIN", "provide user domain if no map was given"},
     {"--revisions-file FILENAME", "provide a file with revision number that should be processed"},
     {"--rules FILENAME[,FILENAME]", "the rules file(s) that determines what goes where"},
     {"--add-metadata", "if passed, each git commit will have svn commit info"},
@@ -178,9 +179,9 @@ int main(int argc, char **argv)
         out << "svn-all-fast-export failed: please specify the rules using the 'rules' argument\n";
         return 11;
     }
-    if (!args->contains("identity-map")) {
+    if (!args->contains("identity-map") && !args->contains("identity-domain")) {
         QTextStream out(stderr);
-        out << "WARNING; no identity-map specified, all commits will be without email address\n\n";
+        out << "WARNING; no identity-map or -domain specified, all commits will use default @localhost email address\n\n";
     }
 
     QCoreApplication app(argc, argv);
@@ -246,6 +247,11 @@ int main(int argc, char **argv)
     svn.setMatchRules(rulesList.allMatchRules());
     svn.setRepositories(repositories);
     svn.setIdentityMap(loadIdentityMapFile(args->optionArgument("identity-map")));
+    // Massage user input a little, no guarantees that input makes sense.
+    QString domain = args->optionArgument("identity-domain").simplified().remove(QChar('@'));
+    if (domain.isEmpty())
+        domain = QString("localhost");
+    svn.setIdentityDomain(domain);
 
     if (max_rev < 1)
         max_rev = svn.youngestRevision();

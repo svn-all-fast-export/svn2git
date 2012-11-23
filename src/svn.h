@@ -36,6 +36,7 @@ public:
     void setMatchRules(const QList<QList<Rules::Match> > &matchRules);
     void setRepositories(const QHash<QString, Repository *> &repositories);
     void setIdentityMap(const QHash<QByteArray, QByteArray> &identityMap);
+    void setIdentityDomain(const QString &identityDomain);
 
     int youngestRevision();
     bool exportRevision(int revnum);
