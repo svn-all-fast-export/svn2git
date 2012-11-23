@@ -338,21 +338,29 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, pathname, pool));
     AprAutoPool dirpool(pool);
 
+    // While we get a hash, put it in a map for sorted lookup, so we can
+    // repeat the conversions and get the same git commit hashes.
+    QMap<QByteArray, svn_node_kind_t> map;
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
-        dirpool.clear();
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
-
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-        QByteArray entryName = pathname + '/' + dirent->name;
-        QString entryFinalName = finalPathName + QString::fromUtf8(dirent->name);
+        map.insertMulti(QByteArray(dirent->name), dirent->kind);
+    }
 
-        if (dirent->kind == svn_node_dir) {
+    QMapIterator<QByteArray, svn_node_kind_t> i(map);
+    while (i.hasNext()) {
+        dirpool.clear();
+        i.next();
+        QByteArray entryName = pathname + '/' + i.key();
+        QString entryFinalName = finalPathName + QString::fromUtf8(i.key());
+
+        if (i.value() == svn_node_dir) {
             entryFinalName += '/';
             if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
-        } else if (dirent->kind == svn_node_file) {
+        } else if (i.value() == svn_node_file) {
             printf("+");
             fflush(stdout);
             if (dumpBlob(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
@@ -469,31 +477,41 @@ int SvnPrivate::exportRevision(int revnum)
 
 int SvnRevision::prepareTransactions()
 {
-    QLinkedList< QPair<svn_fs_path_change_t*, const char*> > sortedChanges;
     // find out what was changed in this revision:
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed(&changes, fs_root, pool));
+
+    QMap<QByteArray, svn_fs_path_change_t*> map;
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         const char *key = reinterpret_cast<const char *>(vkey);
         svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
-
-        // If we mix path deletions with path adds/replaces we might erase a branch after that it has been reset -> history truncated
-        if(change->change_kind == svn_fs_path_change_delete) {
-            sortedChanges.prepend( qMakePair(change, key) );
-        } else {
-            sortedChanges.append( qMakePair(change, key) );
+        // If we mix path deletions with path adds/replaces we might erase a
+        // branch after that it has been reset -> history truncated
+        if (map.contains(QByteArray(key))) {
+            // If the same path is deleted and added, we need to put the
+            // deletions into the map first, then the addition.
+            if (change->change_kind == svn_fs_path_change_delete) {
+                // XXX
+            }
+            fprintf(stderr, "\nDuplicate key found in rev %d: %s\n", revnum, key);
+            fprintf(stderr, "This needs more code to be handled, file a bug report\n");
+            fflush(stderr);
+            exit(1);
         }
+        map.insertMulti(QByteArray(key), change);
     }
 
-    QPair<svn_fs_path_change_t*, const char*> pair;
-    foreach (pair, sortedChanges) {
-        if (exportEntry(pair.second, pair.first, changes) == EXIT_FAILURE)
+    QMapIterator<QByteArray, svn_fs_path_change_t*> i(map);
+    while (i.hasNext()) {
+        i.next();
+        if (exportEntry(i.key(), i.value(), changes) == EXIT_FAILURE)
             return EXIT_FAILURE;
     }
-        return EXIT_SUCCESS;
+
+    return EXIT_SUCCESS;
 }
 
 int SvnRevision::fetchRevProps()
@@ -823,7 +841,6 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         SVN_ERR(svn_fs_revision_root(&fs_root, fs, revnum - 1, pool));
 
     // get the dir listing
-    apr_hash_t *entries;
     svn_node_kind_t kind;
     SVN_ERR(svn_fs_check_path(&kind, fs_root, path, pool));
     if(kind == svn_node_none) {
@@ -834,21 +851,32 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         return EXIT_SUCCESS;
     }
 
+    apr_hash_t *entries;
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, path, pool));
-
     AprAutoPool dirpool(pool);
+
+    // While we get a hash, put it in a map for sorted lookup, so we can
+    // repeat the conversions and get the same git commit hashes.
+    QMap<QByteArray, svn_node_kind_t> map;
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         dirpool.clear();
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
-
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+        if (dirent->kind != svn_node_dir)
+            continue;           // not a directory, so can't recurse; skip
+        map.insertMulti(QByteArray(dirent->name), dirent->kind);
+    }
 
-        QByteArray entry = path + QByteArray("/") + dirent->name;
+    QMapIterator<QByteArray, svn_node_kind_t> i(map);
+    while (i.hasNext()) {
+        dirpool.clear();
+        i.next();
+        QByteArray entry = path + QByteArray("/") + i.key();
         QByteArray entryFrom;
         if (path_from)
-            entryFrom = path_from + QByteArray("/") + dirent->name;
+            entryFrom = path_from + QByteArray("/") + i.key();
 
         // check if this entry is in the changelist for this revision already
         svn_fs_path_change_t *otherchange =
@@ -860,7 +888,7 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         }
 
         QString current = QString::fromUtf8(entry);
-        if (dirent->kind == svn_node_dir)
+        if (i.value() == svn_node_dir)
             current += '/';
 
         // find the first rule that matches this pathname
