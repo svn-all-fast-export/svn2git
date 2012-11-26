@@ -779,6 +779,18 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
         transactions.insert(repository + branch, txn);
     }
 
+    //
+    // If this path was copied from elsewhere, use it to infer _some_
+    // merge points.  This heuristic is fairly useful for tracking
+    // changes across directory re-organizations and wholesale branch
+    // imports.
+    //
+    if (path_from != NULL && prevrepository == repository && prevbranch != branch) {
+        if(ruledebug)
+            qDebug() << "copy from branch" << prevbranch << "to branch" << branch << "@rev" << rev_from;
+        txn->noteCopyFromBranch (prevbranch, rev_from);
+    }
+
     if (change->change_kind == svn_fs_path_change_replace && path_from == NULL) {
         if(ruledebug)
             qDebug() << "replaced with empty path (" << branch << path << ")";
