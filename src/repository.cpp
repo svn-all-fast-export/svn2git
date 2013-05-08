@@ -736,7 +736,7 @@ void Repository::Transaction::commit()
     QByteArray s("");
     s.append("commit " + branchRef + "\n");
     s.append("mark :" + QByteArray::number(mark) + "\n");
-    s.append("committer " + QString::fromUtf8(author) + " " + QString::number(datetime) + " +0000" + "\n");
+    s.append("committer " + author + " " + QString::number(datetime).toUtf8() + " +0000" + "\n");
     s.append("data " + QString::number(message.length()) + "\n");
     s.append(message + "\n");
     repository->fastImport.write(s);
