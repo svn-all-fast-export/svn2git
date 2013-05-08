@@ -685,7 +685,7 @@ void Repository::Transaction::commitNote(const QByteArray &noteText, bool append
     QByteArray s("");
     s.append("commit refs/notes/commits\n");
     s.append("mark :" + QByteArray::number(maxMark + 1) + "\n");
-    s.append("committer " + QString::fromUtf8(author) + " " + QString::number(datetime) + " +0000" + "\n");
+    s.append("committer " + author + " " + QString::number(datetime) + " +0000" + "\n");
     s.append("data " + QString::number(message.length()) + "\n");
     s.append(message + "\n");
     s.append("N inline " + commitRef + "\n");
