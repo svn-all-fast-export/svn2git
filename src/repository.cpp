@@ -26,7 +26,8 @@
 
 static const int maxSimultaneousProcesses = 100;
 
-static const int maxMark = (1 << 20) - 2; // some versions of git-fast-import are buggy for larger values of maxMark
+typedef unsigned long long mark_t;
+static const mark_t maxMark = ULONG_MAX;
 
 class FastImportRepository : public Repository
 {
@@ -116,10 +117,10 @@ private:
     QByteArray resetBranches;
 
     /* starts at 0, and counts up.  */
-    int last_commit_mark;
+    mark_t last_commit_mark;
 
     /* starts at maxMark and counts down. Reset after each SVN revision */
-    int next_file_mark;
+    mark_t next_file_mark;
 
     bool processHasStarted;
 
@@ -129,8 +130,8 @@ private:
     // called when a transaction is deleted
     void forgetTransaction(Transaction *t);
 
-    int resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment);
-    int markFrom(const QString &branchFrom, int branchRevNum, QByteArray &desc);
+    int resetBranch(const QString &branch, int revnum, mark_t mark, const QByteArray &resetTo, const QByteArray &comment);
+    long long markFrom(const QString &branchFrom, int branchRevNum, QByteArray &desc);
 
     friend class ProcessCache;
     Q_DISABLE_COPY(FastImportRepository)
@@ -295,13 +296,14 @@ static QString logFileName(QString name)
     return name;
 }
 
-static int lastValidMark(QString name)
+static mark_t lastValidMark(QString name)
 {
     QFile marksfile(name + "/" + marksFileName(name));
     if (!marksfile.open(QIODevice::ReadOnly))
         return 0;
 
-    int prev_mark = 0;
+    qDebug()  << "marksfile " << marksfile.fileName() ;
+    mark_t prev_mark = 0;
 
     int lineno = 0;
     while (!marksfile.atEnd()) {
@@ -310,17 +312,17 @@ static int lastValidMark(QString name)
         if (line.isEmpty())
             continue;
 
-        int mark = 0;
+        mark_t mark = 0;
         if (line[0] == ':') {
             int sp = line.indexOf(' ');
             if (sp != -1) {
                 QString m = line.mid(1, sp-1);
-                mark = m.toInt();
+                mark = m.toULongLong();
             }
         }
 
         if (!mark) {
-            qCritical() << marksfile.fileName() << "line" << lineno << "marks file corrupt?";
+            qCritical() << marksfile.fileName() << "line" << lineno << "marks file corrupt?" << "mark " << mark;
             return 0;
         }
 
@@ -353,7 +355,7 @@ int FastImportRepository::setupIncremental(int &cutoff)
 
     QRegExp progress("progress SVN r(\\d+) branch (.*) = :(\\d+)");
 
-    int last_valid_mark = lastValidMark(name);
+    mark_t last_valid_mark = lastValidMark(name);
 
     int last_revnum = 0;
     qint64 pos = 0;
@@ -374,7 +376,7 @@ int FastImportRepository::setupIncremental(int &cutoff)
 
         int revnum = progress.cap(1).toInt();
         QString branch = progress.cap(2);
-        int mark = progress.cap(3).toInt();
+        mark_t mark = progress.cap(3).toULongLong();
 
         if (revnum >= cutoff)
             goto beyond_cutoff;
@@ -483,7 +485,7 @@ void FastImportRepository::reloadBranches()
     }
 }
 
-int FastImportRepository::markFrom(const QString &branchFrom, int branchRevNum, QByteArray &branchFromDesc)
+long long FastImportRepository::markFrom(const QString &branchFrom, int branchRevNum, QByteArray &branchFromDesc)
 {
     Branch &brFrom = branches[branchFrom];
     if (!brFrom.created)
@@ -517,7 +519,7 @@ int FastImportRepository::createBranch(const QString &branch, int revnum,
                                        const QString &branchFrom, int branchRevNum)
 {
     QByteArray branchFromDesc = "from branch " + branchFrom.toUtf8();
-    int mark = markFrom(branchFrom, branchRevNum, branchFromDesc);
+    long long mark = markFrom(branchFrom, branchRevNum, branchFromDesc);
 
     if (mark == -1) {
         qCritical() << branch << "in repository" << name
@@ -550,7 +552,7 @@ int FastImportRepository::deleteBranch(const QString &branch, int revnum)
     return resetBranch(branch, revnum, 0, null_sha, "delete");
 }
 
-int FastImportRepository::resetBranch(const QString &branch, int revnum, int mark, const QByteArray &resetTo, const QByteArray &comment)
+int FastImportRepository::resetBranch(const QString &branch, int revnum, mark_t mark, const QByteArray &resetTo, const QByteArray &comment)
 {
     QByteArray branchRef = branch.toUtf8();
     if (!branchRef.startsWith("refs/"))
@@ -793,7 +795,7 @@ void FastImportRepository::Transaction::noteCopyFromBranch(const QString &branch
         return;
     }
     static QByteArray dummy;
-    int mark = repository->markFrom(branchFrom, branchRevNum, dummy);
+    long long mark = repository->markFrom(branchFrom, branchRevNum, dummy);
     Q_ASSERT(dummy.isEmpty());
 
     if (mark == -1) {
@@ -824,7 +826,7 @@ void FastImportRepository::Transaction::deleteFile(const QString &path)
 
 QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int mode, qint64 length)
 {
-    int mark = repository->next_file_mark--;
+    mark_t mark = repository->next_file_mark--;
 
     // in case the two mark allocations meet, we might as well just abort
     Q_ASSERT(mark > repository->last_commit_mark + 1);
@@ -891,7 +893,7 @@ void FastImportRepository::Transaction::commit()
     // We might be tempted to use the SVN revision number as the fast-import commit mark.
     // However, a single SVN revision can modify multple branches, and thus lead to multiple
     // commits in the same repo.  So, we need to maintain a separate commit mark counter.
-    int mark = ++repository->last_commit_mark;
+    mark_t  mark = ++repository->last_commit_mark;
 
     // in case the two mark allocations meet, we might as well just abort
     Q_ASSERT(mark < repository->next_file_mark - 1);
@@ -903,7 +905,7 @@ void FastImportRepository::Transaction::commit()
     if (CommandLineParser::instance()->contains("add-metadata"))
         message += "\n" + Repository::formatMetadataMessage(svnprefix, revnum);
 
-    int parentmark = 0;
+    mark_t parentmark = 0;
     Branch &br = repository->branches[branch];
     if (br.created && !br.marks.isEmpty() && br.marks.last()) {
         parentmark = br.marks.last();
@@ -929,7 +931,7 @@ void FastImportRepository::Transaction::commit()
 
     // note some of the inferred merges
     QByteArray desc = "";
-    int i = !!parentmark;	// if parentmark != 0, there's at least one parent
+    mark_t i = !!parentmark;	// if parentmark != 0, there's at least one parent
 
     if(log.contains("This commit was manufactured by cvs2svn") && merges.count() > 1) {
         qSort(merges);
@@ -938,7 +940,7 @@ void FastImportRepository::Transaction::commit()
         qWarning() << "WARN: Discarding all but the highest merge point as a workaround for cvs2svn created branch/tag"
                       << "Discarded marks:" << merges;
     } else {
-        foreach (const int merge, merges) {
+        foreach (const mark_t merge, merges) {
             if (merge == parentmark) {
                 qDebug() << "Skipping marking" << merge << "as a merge point as it matches the parent";
                 continue;
