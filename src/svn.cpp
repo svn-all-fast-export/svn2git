@@ -568,9 +568,13 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     QString current = QString::fromUtf8(key);
 
     // was this copied from somewhere?
-    svn_revnum_t rev_from;
-    const char *path_from;
-    SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
+    svn_revnum_t rev_from = SVN_INVALID_REVNUM;
+    const char *path_from = NULL;
+    if (change->change_kind != svn_fs_path_change_delete) {
+        // svn_fs_copied_from would fail on deleted paths, because the path
+        // obviously no longer exists in the current revision
+        SVN_ERR(svn_fs_copied_from(&rev_from, &path_from, fs_root, key, revpool));
+    }
 
     // is this a directory?
     svn_boolean_t is_dir;
