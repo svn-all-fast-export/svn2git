@@ -207,6 +207,18 @@ void Rules::load(const QString &filename)
                     repo.prefix = matchPrefixLine.cap(1);
                     continue;
                 } else if (line == "end repository") {
+                    if (!repo.forwardTo.isEmpty()
+                        && !repo.description.isEmpty()) {
+
+                        qFatal("Specifing repository and description on repository is invalid on line %d", lineNumber);
+                    }
+
+                    if (!repo.forwardTo.isEmpty()
+                        && !repo.branches.isEmpty()) {
+
+                        qFatal("Specifing repository and branches on repository is invalid on line %d", lineNumber);
+                    }
+
                     m_repositories += repo;
                     {
                         // clear out 'repo'
