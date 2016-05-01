@@ -199,7 +199,7 @@ int main(int argc, char **argv)
  retry:
     int min_rev = 1;
     foreach (Rules::Repository rule, rulesList.allRepositories()) {
-        Repository *repo = new Repository(rule);
+        Repository *repo = createRepository(rule, repositories);
         if (!repo)
             return EXIT_FAILURE;
         repositories.insert(rule.name, repo);
