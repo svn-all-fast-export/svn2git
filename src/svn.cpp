@@ -869,8 +869,6 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-        if (dirent->kind != svn_node_dir)
-            continue;           // not a directory, so can't recurse; skip
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
     }
 
