@@ -87,6 +87,7 @@ public:
     const QByteArray branchNote(const QString& branch) const;
     void setBranchNote(const QString& branch, const QByteArray& noteText);
 
+    bool hasPrefix() const;
 private:
     struct Branch
     {
@@ -200,6 +201,9 @@ public:
     { return repo->branchNote(branch); }
     void setBranchNote(const QString& branch, const QByteArray& noteText)
     { repo->setBranchNote(branch, noteText); }
+
+    bool hasPrefix() const
+    { return !prefix.isEmpty() || repo->hasPrefix(); }
 };
 
 class ProcessCache: QLinkedList<FastImportRepository *>
@@ -764,6 +768,11 @@ void FastImportRepository::setBranchNote(const QString& branch, const QByteArray
 {
     if (branches.contains(branch))
         branches[branch].note = noteText;
+}
+
+bool FastImportRepository::hasPrefix() const
+{
+    return !prefix.isEmpty();
 }
 
 FastImportRepository::Transaction::~Transaction()
