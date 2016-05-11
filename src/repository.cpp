@@ -262,7 +262,7 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
     branches["master"].created = 1;
 
     fastImport.setWorkingDirectory(name);
-    if (!CommandLineParser::instance()->contains("dry-run")) {
+    if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
         if (!QDir(name).exists()) { // repo doesn't exist yet.
             qDebug() << "Creating new repository" << name;
             QDir::current().mkpath(name);
@@ -291,7 +291,10 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
 static QString logFileName(QString name)
 {
     name.replace('/', '_');
-    name.prepend("log-");
+    if (CommandLineParser::instance()->contains("create-dump"))
+        name.append(".fi");
+    else
+        name.prepend("log-");
     return name;
 }
 
@@ -730,7 +733,7 @@ void FastImportRepository::startFastImport()
         fastImport.setStandardOutputFile(logFileName(name), QIODevice::Append);
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
-        if (!CommandLineParser::instance()->contains("dry-run")) {
+        if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
             fastImport.start("git", QStringList() << "fast-import" << marksOptions);
         } else {
             fastImport.start("/bin/cat", QStringList());
