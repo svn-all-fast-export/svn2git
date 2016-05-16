@@ -120,6 +120,10 @@ private:
     QByteArray deletedBranches;
     QByteArray resetBranches;
 
+  /* Optional filter to fix up log messages */
+    QProcess filterMsg;
+    QByteArray msgFilter(QByteArray);
+
     /* starts at 0, and counts up.  */
     mark_t last_commit_mark;
 
@@ -729,6 +733,29 @@ void FastImportRepository::finalizeTags()
     printf("\n");
 }
 
+
+QByteArray
+FastImportRepository::msgFilter(QByteArray msg)
+{
+    QByteArray output = msg;
+
+    if (CommandLineParser::instance()->contains("msg-filter")) {
+	if (filterMsg.state() == QProcess::Running)
+	    qFatal("filter process already running?");
+
+	filterMsg.start(CommandLineParser::instance()->optionArgument("msg-filter"));
+
+	if(!(filterMsg.waitForStarted(-1)))
+	    qFatal("Failed to Start Filter %d %s", __LINE__, qPrintable(filterMsg.errorString()));
+
+	filterMsg.write(msg);
+	filterMsg.closeWriteChannel();
+	filterMsg.waitForFinished();
+	output = filterMsg.readAllStandardOutput();
+    }
+    return output;
+}
+
 void FastImportRepository::startFastImport()
 {
     processCache.touch(this);
@@ -935,6 +962,9 @@ void FastImportRepository::Transaction::commit()
         message += '\n';
     if (CommandLineParser::instance()->contains("add-metadata"))
         message += "\n" + Repository::formatMetadataMessage(svnprefix, revnum);
+
+    // Call external message filter if provided
+    message = repository->msgFilter(message);
 
     mark_t parentmark = 0;
     Branch &br = repository->branches[branch];
