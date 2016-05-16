@@ -161,10 +161,7 @@ SvnPrivate::SvnPrivate(const QString &pathToRepository)
     svn_fs_youngest_rev(&youngest_rev, fs, global_pool);
 }
 
-SvnPrivate::~SvnPrivate()
-{
-    svn_pool_destroy(global_pool);
-}
+SvnPrivate::~SvnPrivate() {}
 
 int SvnPrivate::youngestRevision()
 {
