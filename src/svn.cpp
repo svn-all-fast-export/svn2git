@@ -706,7 +706,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
 //                qDebug() << "   " << qPrintable(current) << "rev" << revnum << "->"
 //                         << qPrintable(repository) << qPrintable(branch) << qPrintable(path);
 
-    if (change->change_kind == svn_fs_path_change_delete && current == svnprefix && path.isEmpty()) {
+    if (change->change_kind == svn_fs_path_change_delete && current == svnprefix && path.isEmpty() && !repo->hasPrefix()) {
         if(ruledebug)
             qDebug() << "repository" << repository << "branch" << branch << "deleted";
         return repo->deleteBranch(branch, revnum);
