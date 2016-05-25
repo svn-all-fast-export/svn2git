@@ -62,9 +62,13 @@ class AprAutoPool
     AprAutoPool &operator=(const AprAutoPool &);
 public:
     inline AprAutoPool(apr_pool_t *parent = NULL)
-        { pool = svn_pool_create(parent); }
-    inline ~AprAutoPool()
-        { svn_pool_destroy(pool); }
+        {
+		pool = svn_pool_create(parent);
+	}
+	inline ~AprAutoPool()
+        {
+		svn_pool_destroy(pool);
+	}
 
     inline void clear() { svn_pool_clear(pool); }
     inline apr_pool_t *data() const { return pool; }
@@ -88,6 +92,7 @@ public:
 
 private:
     AprAutoPool global_pool;
+    AprAutoPool scratch_pool;
     svn_fs_t *fs;
     svn_revnum_t youngest_rev;
 };
@@ -145,7 +150,7 @@ bool Svn::exportRevision(int revnum)
 }
 
 SvnPrivate::SvnPrivate(const QString &pathToRepository)
-    : global_pool(NULL)
+    : global_pool(NULL) , scratch_pool(NULL)
 {
     if( openRepository(pathToRepository) != EXIT_SUCCESS) {
         qCritical() << "Failed to open repository";
@@ -156,10 +161,7 @@ SvnPrivate::SvnPrivate(const QString &pathToRepository)
     svn_fs_youngest_rev(&youngest_rev, fs, global_pool);
 }
 
-SvnPrivate::~SvnPrivate()
-{
-    svn_pool_destroy(global_pool);
-}
+SvnPrivate::~SvnPrivate() {}
 
 int SvnPrivate::youngestRevision()
 {
@@ -172,7 +174,7 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     QString path = pathToRepository;
     while (path.endsWith('/')) // no trailing slash allowed
         path = path.mid(0, path.length()-1);
-    SVN_ERR(svn_repos_open(&repos, QFile::encodeName(path), global_pool));
+    SVN_ERR(svn_repos_open3(&repos, QFile::encodeName(path), NULL, global_pool, scratch_pool));
     fs = svn_repos_fs(repos);
 
     return EXIT_SUCCESS;
@@ -297,7 +299,7 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
         if (!CommandLineParser::instance()->contains("dry-run")) {
             QByteArray buf;
             buf.reserve(len);
-            SVN_ERR(svn_stream_read(in_stream, buf.data(), &len));
+            SVN_ERR(svn_stream_read_full(in_stream, buf.data(), &len));
             if (len == strlen("link ") && strncmp(buf, "link ", len) == 0) {
                 mode = 0120000;
                 stream_length -= len;
@@ -316,9 +318,7 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
     if (!CommandLineParser::instance()->contains("dry-run")) {
         // open a generic svn_stream_t for the QIODevice
         out_stream = streamForDevice(io, dumppool);
-        SVN_ERR(svn_stream_copy(in_stream, out_stream, dumppool));
-        svn_stream_close(out_stream);
-        svn_stream_close(in_stream);
+        SVN_ERR(svn_stream_copy3(in_stream, out_stream, NULL, NULL, dumppool));
 
         // print an ending newline
         io->putChar('\n');
@@ -430,15 +430,15 @@ public:
     int fetchRevProps();
     int commit();
 
-    int exportEntry(const char *path, const svn_fs_path_change_t *change, apr_hash_t *changes);
-    int exportDispatch(const char *path, const svn_fs_path_change_t *change,
+    int exportEntry(const char *path, const svn_fs_path_change2_t *change, apr_hash_t *changes);
+    int exportDispatch(const char *path, const svn_fs_path_change2_t *change,
                        const char *path_from, svn_revnum_t rev_from,
                        apr_hash_t *changes, const QString &current, const Rules::Match &rule,
                        const MatchRuleList &matchRules, apr_pool_t *pool);
-    int exportInternal(const char *path, const svn_fs_path_change_t *change,
+    int exportInternal(const char *path, const svn_fs_path_change2_t *change,
                        const char *path_from, svn_revnum_t rev_from,
                        const QString &current, const Rules::Match &rule, const MatchRuleList &matchRules);
-    int recurse(const char *path, const svn_fs_path_change_t *change,
+    int recurse(const char *path, const svn_fs_path_change2_t *change,
                 const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                 apr_hash_t *changes, apr_pool_t *pool);
 };
@@ -477,15 +477,15 @@ int SvnRevision::prepareTransactions()
 {
     // find out what was changed in this revision:
     apr_hash_t *changes;
-    SVN_ERR(svn_fs_paths_changed(&changes, fs_root, pool));
+    SVN_ERR(svn_fs_paths_changed2(&changes, fs_root, pool));
 
-    QMap<QByteArray, svn_fs_path_change_t*> map;
+    QMap<QByteArray, svn_fs_path_change2_t*> map;
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         const char *key = reinterpret_cast<const char *>(vkey);
-        svn_fs_path_change_t *change = reinterpret_cast<svn_fs_path_change_t *>(value);
+        svn_fs_path_change2_t *change = reinterpret_cast<svn_fs_path_change2_t *>(value);
         // If we mix path deletions with path adds/replaces we might erase a
         // branch after that it has been reset -> history truncated
         if (map.contains(QByteArray(key))) {
@@ -502,7 +502,7 @@ int SvnRevision::prepareTransactions()
         map.insertMulti(QByteArray(key), change);
     }
 
-    QMapIterator<QByteArray, svn_fs_path_change_t*> i(map);
+    QMapIterator<QByteArray, svn_fs_path_change2_t*> i(map);
     while (i.hasNext()) {
         i.next();
         if (exportEntry(i.key(), i.value(), changes) == EXIT_FAILURE)
@@ -561,7 +561,7 @@ int SvnRevision::commit()
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change,
+int SvnRevision::exportEntry(const char *key, const svn_fs_path_change2_t *change,
                              apr_hash_t *changes)
 {
     AprAutoPool revpool(pool.data());
@@ -647,7 +647,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change_t *change
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *change,
+int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change2_t *change,
                                 const char *path_from, svn_revnum_t rev_from,
                                 apr_hash_t *changes, const QString &current,
                                 const Rules::Match &rule, const MatchRuleList &matchRules, apr_pool_t *pool)
@@ -685,7 +685,7 @@ int SvnRevision::exportDispatch(const char *key, const svn_fs_path_change_t *cha
     return EXIT_FAILURE;
 }
 
-int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *change,
+int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *change,
                                 const char *path_from, svn_revnum_t rev_from,
                                 const QString &current, const Rules::Match &rule, const MatchRuleList &matchRules)
 {
@@ -837,7 +837,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change_t *cha
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
+int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
                          const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                          apr_hash_t *changes, apr_pool_t *pool)
 {
@@ -882,8 +882,8 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change_t *change,
             entryFrom = path_from + QByteArray("/") + i.key();
 
         // check if this entry is in the changelist for this revision already
-        svn_fs_path_change_t *otherchange =
-            (svn_fs_path_change_t*)apr_hash_get(changes, entry.constData(), APR_HASH_KEY_STRING);
+        svn_fs_path_change2_t *otherchange =
+            (svn_fs_path_change2_t*)apr_hash_get(changes, entry.constData(), APR_HASH_KEY_STRING);
         if (otherchange && otherchange->change_kind == svn_fs_path_change_add) {
             qDebug() << entry << "rev" << revnum
                      << "is in the change-list, deferring to that one";
