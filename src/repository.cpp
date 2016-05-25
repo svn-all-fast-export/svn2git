@@ -89,6 +89,9 @@ public:
     void setBranchNote(const QString& branch, const QByteArray& noteText);
 
     bool hasPrefix() const;
+
+    QString getName() const;
+    Repository *getEffectiveRepository();
 private:
     struct Branch
     {
@@ -140,6 +143,7 @@ private:
 
 class ForwardingRepository : public Repository
 {
+    QString name;
     Repository *repo;
     QString prefix;
 public:
@@ -170,7 +174,7 @@ public:
         { return txn->commitNote(noteText, append, commit); }
     };
 
-    ForwardingRepository(Repository *r, const QString &p) : repo(r), prefix(p) {}
+    ForwardingRepository(const QString &n, Repository *r, const QString &p) : name(n), repo(r), prefix(p) {}
 
     int setupIncremental(int &) { return 1; }
     void restoreLog() {}
@@ -205,6 +209,11 @@ public:
 
     bool hasPrefix() const
     { return !prefix.isEmpty() || repo->hasPrefix(); }
+
+    QString getName() const
+    { return name; }
+    Repository *getEffectiveRepository()
+    { return repo->getEffectiveRepository(); }
 };
 
 class ProcessCache: QLinkedList<FastImportRepository *>
@@ -242,7 +251,7 @@ Repository *createRepository(const Rules::Repository &rule, const QHash<QString,
         qCritical() << "no repository with name" << rule.forwardTo << "found at" << rule.info();
         return r;
     }
-    return new ForwardingRepository(r, rule.prefix);
+    return new ForwardingRepository(rule.name, r, rule.prefix);
 }
 
 static QString marksFileName(QString name)
@@ -778,6 +787,16 @@ void FastImportRepository::setBranchNote(const QString& branch, const QByteArray
 bool FastImportRepository::hasPrefix() const
 {
     return !prefix.isEmpty();
+}
+
+QString FastImportRepository::getName() const
+{
+    return name;
+}
+
+Repository *FastImportRepository::getEffectiveRepository()
+{
+    return this;
 }
 
 FastImportRepository::Transaction::~Transaction()

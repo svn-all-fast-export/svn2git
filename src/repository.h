@@ -139,6 +139,9 @@ public:
     virtual void setBranchNote(const QString& branch, const QByteArray& noteText) = 0;
 
     virtual bool hasPrefix() const = 0;
+
+    virtual QString getName() const = 0;
+    virtual Repository *getEffectiveRepository() = 0;
 };
 
 Repository *createRepository(const Rules::Repository &rule, const QHash<QString, Repository *> &repositories);

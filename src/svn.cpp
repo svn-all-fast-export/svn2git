@@ -207,39 +207,6 @@ findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &curren
     return end;
 }
 
-static void splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
-                          QString *repository_p, QString *branch_p, QString *path_p)
-{
-    QString svnprefix = pathName;
-    svnprefix.truncate(rule.rx.matchedLength());
-
-    if (svnprefix_p) {
-        *svnprefix_p = svnprefix;
-    }
-
-    if (repository_p) {
-        *repository_p = svnprefix;
-        repository_p->replace(rule.rx, rule.repository);
-        foreach (Rules::Match::Substitution subst, rule.repo_substs) {
-            subst.apply(*repository_p);
-        }
-    }
-
-    if (branch_p) {
-        *branch_p = svnprefix;
-        branch_p->replace(rule.rx, rule.branch);
-        foreach (Rules::Match::Substitution subst, rule.branch_substs) {
-            subst.apply(*branch_p);
-        }
-    }
-
-    if (path_p) {
-        QString prefix = svnprefix;
-        prefix.replace(rule.rx, rule.prefix);
-        *path_p = prefix + pathName.mid(svnprefix.length());
-    }
-}
-
 static int pathMode(svn_fs_root_t *fs_root, const char *pathname, apr_pool_t *pool)
 {
     svn_string_t *propvalue;
@@ -441,6 +408,9 @@ public:
     int recurse(const char *path, const svn_fs_path_change2_t *change,
                 const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                 apr_hash_t *changes, apr_pool_t *pool);
+private:
+    void splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
+                       QString *repository_p, QString *effectiveRepository_p, QString *branch_p, QString *path_p);
 };
 
 int SvnPrivate::exportRevision(int revnum)
@@ -471,6 +441,51 @@ int SvnPrivate::exportRevision(int revnum)
 
     printf(" done\n");
     return EXIT_SUCCESS;
+}
+
+void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
+                                QString *repository_p, QString *effectiveRepository_p, QString *branch_p, QString *path_p)
+{
+    QString svnprefix = pathName;
+    svnprefix.truncate(rule.rx.matchedLength());
+
+    if (svnprefix_p) {
+        *svnprefix_p = svnprefix;
+    }
+
+    if (repository_p) {
+        *repository_p = svnprefix;
+        repository_p->replace(rule.rx, rule.repository);
+        foreach (Rules::Match::Substitution subst, rule.repo_substs) {
+            subst.apply(*repository_p);
+        }
+    }
+
+    if (effectiveRepository_p) {
+        *effectiveRepository_p = svnprefix;
+        effectiveRepository_p->replace(rule.rx, rule.repository);
+        foreach (Rules::Match::Substitution subst, rule.repo_substs) {
+            subst.apply(*effectiveRepository_p);
+        }
+        Repository *repository = repositories.value(*effectiveRepository_p, 0);
+        if (repository) {
+            *effectiveRepository_p = repository->getEffectiveRepository()->getName();
+        }
+    }
+
+    if (branch_p) {
+        *branch_p = svnprefix;
+        branch_p->replace(rule.rx, rule.branch);
+        foreach (Rules::Match::Substitution subst, rule.branch_substs) {
+            subst.apply(*branch_p);
+        }
+    }
+
+    if (path_p) {
+        QString prefix = svnprefix;
+        prefix.replace(rule.rx, rule.prefix);
+        *path_p = prefix + pathName.mid(svnprefix.length());
+    }
 }
 
 int SvnRevision::prepareTransactions()
@@ -690,8 +705,8 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                                 const QString &current, const Rules::Match &rule, const MatchRuleList &matchRules)
 {
     needCommit = true;
-    QString svnprefix, repository, branch, path;
-    splitPathName(rule, current, &svnprefix, &repository, &branch, &path);
+    QString svnprefix, repository, effectiveRepository, branch, path;
+    splitPathName(rule, current, &svnprefix, &repository, &effectiveRepository, &branch, &path);
 
     Repository *repo = repositories.value(repository, 0);
     if (!repo) {
@@ -713,7 +728,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
     }
 
     QString previous;
-    QString prevsvnprefix, prevrepository, prevbranch, prevpath;
+    QString prevsvnprefix, prevrepository, preveffectiverepository, prevbranch, prevpath;
 
     if (path_from != NULL) {
         previous = QString::fromUtf8(path_from);
@@ -724,7 +739,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
         if (prevmatch != matchRules.constEnd()) {
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
-                          &prevbranch, &prevpath);
+                          &preveffectiverepository, &prevbranch, &prevpath);
 
         } else {
             qWarning() << "WARN: SVN reports a \"copy from\" @" << revnum << "from" << path_from << "@" << rev_from << "but no matching rules found! Ignoring copy, treating as a modification";
@@ -740,7 +755,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                      << qPrintable(prevrepository) << "branch"
                      << qPrintable(prevbranch) << "subdir"
                      << qPrintable(prevpath);
-        } else if (prevrepository != repository) {
+        } else if (preveffectiverepository != effectiveRepository) {
             qWarning() << "WARN:" << qPrintable(current) << "rev" << revnum
                        << "is a cross-repository copy (from repository"
                        << qPrintable(prevrepository) << "branch"
@@ -808,7 +823,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
     // changes across directory re-organizations and wholesale branch
     // imports.
     //
-    if (path_from != NULL && prevrepository == repository && prevbranch != branch) {
+    if (path_from != NULL && preveffectiverepository == effectiveRepository && prevbranch != branch) {
         if(ruledebug)
             qDebug() << "copy from branch" << prevbranch << "to branch" << branch << "@rev" << rev_from;
         txn->noteCopyFromBranch (prevbranch, rev_from);
