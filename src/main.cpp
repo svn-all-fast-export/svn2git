@@ -130,6 +130,7 @@ static const CommandLineOption options[] = {
     {"--identity-domain DOMAIN", "provide user domain if no map was given"},
     {"--revisions-file FILENAME", "provide a file with revision number that should be processed"},
     {"--rules FILENAME[,FILENAME]", "the rules file(s) that determines what goes where"},
+    {"--msg-filter FILENAME", "External program / script to modify svn log message"},
     {"--add-metadata", "if passed, each git commit will have svn commit info"},
     {"--add-metadata-notes", "if passed, each git commit will have notes with svn commit info"},
     {"--resume-from revision", "start importing at svn revision number"},
