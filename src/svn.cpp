@@ -597,7 +597,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change2_t *chang
     svn_boolean_t is_dir;
     SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
     // Adding newly created directories
-    if (is_dir && change->change_kind == svn_fs_path_change_add && path_from == NULL) {
+    if (is_dir && change->change_kind == svn_fs_path_change_add && path_from == NULL && CommandLineParser::instance()->contains("empty-dirs")) {
         QString keyQString = key;
         // Skipping SVN-directory-layout
         if (keyQString.endsWith("/trunk") || keyQString.endsWith("/branches") || keyQString.endsWith("/tags")) {
