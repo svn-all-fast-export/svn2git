@@ -860,7 +860,9 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             qDebug() << "add/change dir (" << key << "->" << branch << path << ")";
         // Add GitIgnore for empty directories
         if (CommandLineParser::instance()->contains("empty-dirs")) {
-            return addGitIgnore(pool, key, path, fs_root, txn);
+            if (addGitIgnore(pool, key, path, fs_root, txn) == EXIT_SUCCESS) {
+                return EXIT_SUCCESS;
+            }
         }
         txn->deleteFile(path);
         recursiveDumpDir(txn, fs_root, key, path, pool);
@@ -946,7 +948,7 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
     return EXIT_SUCCESS;
 }
 
-int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
+	int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
                               svn_fs_root_t *fs_root, Repository::Transaction *txn)
 {
     // Check for number of subfiles
@@ -954,8 +956,7 @@ int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, key, pool));
     // Return if any subfiles
     if (apr_hash_count(entries)!=0) {
-        txn->deleteFile(path);
-        return EXIT_SUCCESS;
+        return EXIT_FAILURE;
     }
 
     // Add empty gitignore-File
