@@ -408,6 +408,8 @@ public:
     int recurse(const char *path, const svn_fs_path_change2_t *change,
                 const char *path_from, const MatchRuleList &matchRules, svn_revnum_t rev_from,
                 apr_hash_t *changes, apr_pool_t *pool);
+    int addGitIgnore(apr_pool_t *pool, const char *key, QString path,
+                     svn_fs_root_t *fs_root, Repository::Transaction *txn);
 private:
     void splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
                        QString *repository_p, QString *effectiveRepository_p, QString *branch_p, QString *path_p);
@@ -594,7 +596,18 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change2_t *chang
     // is this a directory?
     svn_boolean_t is_dir;
     SVN_ERR(svn_fs_is_dir(&is_dir, fs_root, key, revpool));
-    if (is_dir) {
+    // Adding newly created directories
+    if (is_dir && change->change_kind == svn_fs_path_change_add && path_from == NULL && CommandLineParser::instance()->contains("empty-dirs")) {
+        QString keyQString = key;
+        // Skipping SVN-directory-layout
+        if (keyQString.endsWith("/trunk") || keyQString.endsWith("/branches") || keyQString.endsWith("/tags")) {
+            //qDebug() << "Skipping SVN-directory-layout:" << keyQString;
+            return EXIT_SUCCESS;
+        }
+        needCommit = true;
+        //qDebug() << "Adding directory:" << key;
+    }
+    else if (is_dir) {
         if (change->change_kind == svn_fs_path_change_modify ||
             change->change_kind == svn_fs_path_change_add) {
             if (path_from == NULL) {
@@ -845,6 +858,10 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
     } else {
         if(ruledebug)
             qDebug() << "add/change dir (" << key << "->" << branch << path << ")";
+        // Add GitIgnore for empty directories
+        if (CommandLineParser::instance()->contains("empty-dirs")) {
+            return addGitIgnore(pool, key, path, fs_root, txn);
+        }
         txn->deleteFile(path);
         recursiveDumpDir(txn, fs_root, key, path, pool);
     }
@@ -925,6 +942,27 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
             }
         }
     }
+
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
+                              svn_fs_root_t *fs_root, Repository::Transaction *txn)
+{
+    // Check for number of subfiles
+    apr_hash_t *entries;
+    SVN_ERR(svn_fs_dir_entries(&entries, fs_root, key, pool));
+    // Return if any subfiles
+    if (apr_hash_count(entries)!=0) {
+        txn->deleteFile(path);
+        return EXIT_SUCCESS;
+    }
+
+    // Add empty gitignore-File
+    QString gitIgnorePath = path + ".gitignore";
+    qDebug() << "Adding GitIgnore-File" << gitIgnorePath;
+    QIODevice *io = txn->addFile(gitIgnorePath, 33188, 0);
+    io->putChar('\n');
 
     return EXIT_SUCCESS;
 }
