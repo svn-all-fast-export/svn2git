@@ -42,6 +42,7 @@
 #include <svn_pools.h>
 #include <svn_repos.h>
 #include <svn_types.h>
+#include <svn_version.h>
 
 #include <QFile>
 #include <QDebug>
@@ -50,6 +51,10 @@
 
 #undef SVN_ERR
 #define SVN_ERR(expr) SVN_INT_ERR(expr)
+
+#if SVN_VER_MAJOR == 1 && SVN_VER_MINOR < 9
+#define svn_stream_read_full svn_stream_read
+#endif
 
 typedef QList<Rules::Match> MatchRuleList;
 typedef QHash<QString, Repository *> RepositoryHash;
@@ -174,7 +179,11 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     QString path = pathToRepository;
     while (path.endsWith('/')) // no trailing slash allowed
         path = path.mid(0, path.length()-1);
+#if SVN_VER_MAJOR == 1 && SVN_VER_MINOR < 9
+    SVN_ERR(svn_repos_open2(&repos, QFile::encodeName(path), NULL, global_pool));
+#else
     SVN_ERR(svn_repos_open3(&repos, QFile::encodeName(path), NULL, global_pool, scratch_pool));
+#endif
     fs = svn_repos_fs(repos);
 
     return EXIT_SUCCESS;
