@@ -21,8 +21,8 @@ Building the tool
 Run `qmake && make`.  You get `./svn-all-fast-export`.
 (Do a checkout of the repo .git' and run qmake and make. You can only build it after having installed libsvn-dev, and naturally Qt. Running the command will give you all the options you can pass to the tool.)
 
-You will need to have some packages to compile it. For Ubuntu distros, use this command to install them all:  
-`sudo apt-get install build-essential subversion git qtchooser qt-qmake qt5-default libapr1 libapr1-dev libsvn-dev`
+You will need to have some packages to compile it. For Ubuntu distros, use this command to install them all:
+`sudo apt-get install build-essential subversion git qtchooser qt5-default libapr1 libapr1-dev libsvn-dev`
 
 KDE
 ---
