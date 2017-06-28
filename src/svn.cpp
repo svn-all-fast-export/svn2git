@@ -305,7 +305,9 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
 
 static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root,
                             const QByteArray &pathname, const QString &finalPathName,
-                            apr_pool_t *pool)
+                            apr_pool_t *pool, svn_revnum_t revnum,
+                            const Rules::Match &rule, const MatchRuleList &matchRules,
+                            bool ruledebug)
 {
     // get the dir listing
     apr_hash_t *entries;
@@ -332,7 +334,19 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
 
         if (i.value() == svn_node_dir) {
             entryFinalName += '/';
-            if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
+            QString entryNameQString = entryName + '/';
+
+            MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, entryNameQString);
+            if (match == matchRules.constEnd()) continue; // no match of parent repo? (should not happen)
+
+            const Rules::Match &matchedRule = *match;
+            if (matchedRule.action != Rules::Match::Export || matchedRule.repository != rule.repository) {
+                if (ruledebug)
+                    qDebug() << "recursiveDumpDir:" << entryNameQString << "skip entry for different/ignored repository";
+                continue;
+            }
+
+            if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool, revnum, rule, matchRules, ruledebug) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else if (i.value() == svn_node_file) {
             printf("+");
@@ -827,7 +841,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                 if(ruledebug)
                     qDebug() << "Create a true SVN copy of branch (" << key << "->" << branch << path << ")";
                 txn->deleteFile(path);
-                recursiveDumpDir(txn, fs_root, key, path, pool);
+                recursiveDumpDir(txn, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
             }
             if (rule.annotate) {
                 // create an annotated tag
@@ -911,7 +925,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         if (ignoreSet == false) {
             txn->deleteFile(path);
         }
-        recursiveDumpDir(txn, fs_root, key, path, pool);
+        recursiveDumpDir(txn, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
     }
 
     return EXIT_SUCCESS;
