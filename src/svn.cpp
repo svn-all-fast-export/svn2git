@@ -1059,11 +1059,10 @@ int SvnRevision::fetchUnknownProps(apr_pool_t *pool, const char *key, svn_fs_roo
     const void *propKey;
     for (hi = apr_hash_first(pool, table); hi; hi = apr_hash_next(hi)) {
         apr_hash_this(hi, &propKey, NULL, &propVal);
-        if (strcmp((char*)propKey, "svn:ignore")!=0) {
+        if (strcmp((char*)propKey, "svn:ignore")!=0 && strcmp((char*)propKey, "svn:mergeinfo") !=0) {
             qWarning() << "WARN: Unknown svn-property" << (char*)propKey << "set to" << ((svn_string_t*)propVal)->data << "for" << key;
         }
     }
 
     return EXIT_SUCCESS;
 }
-
