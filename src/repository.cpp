@@ -642,7 +642,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
         startFastImport();
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
-        qDebug() << "checkpoint!, marks file trunkated";
+        qDebug() << "checkpoint!, marks file truncated";
     }
     outstandingTransactions++;
     return txn;
