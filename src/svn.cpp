@@ -303,12 +303,32 @@ static int dumpBlob(Repository::Transaction *txn, svn_fs_root_t *fs_root,
     return EXIT_SUCCESS;
 }
 
-static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root,
+static bool wasDir(svn_fs_t *fs, int revnum, const char *pathname, apr_pool_t *pool)
+{
+    AprAutoPool subpool(pool);
+    svn_fs_root_t *fs_root;
+    if (svn_fs_revision_root(&fs_root, fs, revnum, subpool) != SVN_NO_ERROR)
+        return false;
+
+    svn_boolean_t is_dir;
+    if (svn_fs_is_dir(&is_dir, fs_root, pathname, subpool) != SVN_NO_ERROR)
+        return false;
+
+    return is_dir;
+}
+
+static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, svn_fs_root_t *fs_root,
                             const QByteArray &pathname, const QString &finalPathName,
                             apr_pool_t *pool, svn_revnum_t revnum,
                             const Rules::Match &rule, const MatchRuleList &matchRules,
                             bool ruledebug)
 {
+    if (!wasDir(fs, revnum, pathname.data(), pool)) {
+        if (dumpBlob(txn, fs_root, pathname, finalPathName, pool) == EXIT_FAILURE)
+            return EXIT_FAILURE;
+        return EXIT_SUCCESS;
+    }
+
     // get the dir listing
     apr_hash_t *entries;
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, pathname, pool));
@@ -346,7 +366,7 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
                 continue;
             }
 
-            if (recursiveDumpDir(txn, fs_root, entryName, entryFinalName, dirpool, revnum, rule, matchRules, ruledebug) == EXIT_FAILURE)
+            if (recursiveDumpDir(txn, fs, fs_root, entryName, entryFinalName, dirpool, revnum, rule, matchRules, ruledebug) == EXIT_FAILURE)
                 return EXIT_FAILURE;
         } else if (i.value() == svn_node_file) {
             printf("+");
@@ -357,20 +377,6 @@ static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_root_t *fs_root
     }
 
     return EXIT_SUCCESS;
-}
-
-static bool wasDir(svn_fs_t *fs, int revnum, const char *pathname, apr_pool_t *pool)
-{
-    AprAutoPool subpool(pool);
-    svn_fs_root_t *fs_root;
-    if (svn_fs_revision_root(&fs_root, fs, revnum, subpool) != SVN_NO_ERROR)
-        return false;
-
-    svn_boolean_t is_dir;
-    if (svn_fs_is_dir(&is_dir, fs_root, pathname, subpool) != SVN_NO_ERROR)
-        return false;
-
-    return is_dir;
 }
 
 time_t get_epoch(const char* svn_date)
@@ -841,7 +847,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                 if(ruledebug)
                     qDebug() << "Create a true SVN copy of branch (" << key << "->" << branch << path << ")";
                 txn->deleteFile(path);
-                recursiveDumpDir(txn, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
+                recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
             }
             if (rule.annotate) {
                 // create an annotated tag
@@ -925,7 +931,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         if (ignoreSet == false) {
             txn->deleteFile(path);
         }
-        recursiveDumpDir(txn, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
+        recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
     }
 
     return EXIT_SUCCESS;
