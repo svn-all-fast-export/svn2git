@@ -279,8 +279,8 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
     // create the default branch
     branches["master"].created = 1;
 
-    fastImport.setWorkingDirectory(name);
     if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
+        fastImport.setWorkingDirectory(name);
         if (!QDir(name).exists()) { // repo doesn't exist yet.
             qDebug() << "Creating new repository" << name;
             QDir::current().mkpath(name);
