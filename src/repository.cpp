@@ -296,7 +296,7 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
             if (!rule.description.isEmpty()) {
                 QFile fDesc(QDir(name).filePath("description"));
                 if (fDesc.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-                    fDesc.write(rule.description.toUtf8());
+                            fDesc.write(rule.description.toUtf8());
                     fDesc.putChar('\n');
                     fDesc.close();
                 }
@@ -490,7 +490,7 @@ void FastImportRepository::reloadBranches()
         if (br.marks.isEmpty() || !br.marks.last())
             continue;
 
-	reset_notes = true;
+        reset_notes = true;
 
         QByteArray branchRef = branch.toUtf8();
         if (!branchRef.startsWith("refs/"))
@@ -502,10 +502,10 @@ void FastImportRepository::reloadBranches()
     }
 
     if (reset_notes &&
-	CommandLineParser::instance()->contains("add-metadata-notes")) {
-      fastImport.write("reset refs/notes/commits\nfrom :" +
-		       QByteArray::number(maxMark + 1) +
-		       "\n");
+        CommandLineParser::instance()->contains("add-metadata-notes")) {
+        fastImport.write("reset refs/notes/commits\nfrom :" +
+                         QByteArray::number(maxMark + 1) +
+                         "\n");
     }
 }
 
@@ -744,18 +744,18 @@ FastImportRepository::msgFilter(QByteArray msg)
     QByteArray output = msg;
 
     if (CommandLineParser::instance()->contains("msg-filter")) {
-	if (filterMsg.state() == QProcess::Running)
-	    qFatal("filter process already running?");
+        if (filterMsg.state() == QProcess::Running)
+            qFatal("filter process already running?");
 
-	filterMsg.start(CommandLineParser::instance()->optionArgument("msg-filter"));
+        filterMsg.start(CommandLineParser::instance()->optionArgument("msg-filter"));
 
-	if(!(filterMsg.waitForStarted(-1)))
-	    qFatal("Failed to Start Filter %d %s", __LINE__, qPrintable(filterMsg.errorString()));
+        if(!(filterMsg.waitForStarted(-1)))
+            qFatal("Failed to Start Filter %d %s", __LINE__, qPrintable(filterMsg.errorString()));
 
-	filterMsg.write(msg);
-	filterMsg.closeWriteChannel();
-	filterMsg.waitForFinished();
-	output = filterMsg.readAllStandardOutput();
+        filterMsg.write(msg);
+        filterMsg.closeWriteChannel();
+        filterMsg.waitForFinished();
+        output = filterMsg.readAllStandardOutput();
     }
     return output;
 }
@@ -996,7 +996,7 @@ void FastImportRepository::Transaction::commit()
 
     // note some of the inferred merges
     QByteArray desc = "";
-    mark_t i = !!parentmark;	// if parentmark != 0, there's at least one parent
+    mark_t i = !!parentmark;        // if parentmark != 0, there's at least one parent
 
     if(log.contains("This commit was manufactured by cvs2svn") && merges.count() > 1) {
         qSort(merges);
