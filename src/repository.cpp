@@ -496,6 +496,7 @@ void FastImportRepository::reloadBranches()
         if (!branchRef.startsWith("refs/"))
             branchRef.prepend("refs/heads/");
 
+        startFastImport();
         fastImport.write("reset " + branchRef +
                         "\nfrom :" + QByteArray::number(br.marks.last()) + "\n\n"
                         "progress Branch " + branchRef + " reloaded\n");
@@ -503,6 +504,8 @@ void FastImportRepository::reloadBranches()
 
     if (reset_notes &&
         CommandLineParser::instance()->contains("add-metadata-notes")) {
+
+        startFastImport();
         fastImport.write("reset refs/notes/commits\nfrom :" +
                          QByteArray::number(maxMark + 1) +
                          "\n");
@@ -903,8 +906,9 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     modifiedFiles.append(repository->prefix + path.toUtf8());
     modifiedFiles.append("\n");
 
+    // it is returned for being written to, so start the process in any case
+    repository->startFastImport();
     if (!CommandLineParser::instance()->contains("dry-run")) {
-        repository->startFastImport();
         repository->fastImport.writeNoLog("blob\nmark :");
         repository->fastImport.writeNoLog(QByteArray::number(mark));
         repository->fastImport.writeNoLog("\ndata ");
@@ -941,6 +945,7 @@ void FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
     s.append("N inline " + commitRef + "\n");
     s.append("data " + QString::number(text.length()) + "\n");
     s.append(text + "\n");
+    repository->startFastImport();
     repository->fastImport.write(s);
 
     if (commit.isNull()) {
