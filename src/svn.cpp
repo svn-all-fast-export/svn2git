@@ -1031,11 +1031,15 @@ int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
     QString gitIgnorePath = path + ".gitignore";
     if (content) {
         QIODevice *io = txn->addFile(gitIgnorePath, 33188, strlen(content));
-        io->write(content);
-        io->putChar('\n');
+        if (!CommandLineParser::instance()->contains("dry-run")) {
+            io->write(content);
+            io->putChar('\n');
+        }
     } else {
         QIODevice *io = txn->addFile(gitIgnorePath, 33188, 0);
-        io->putChar('\n');
+        if (!CommandLineParser::instance()->contains("dry-run")) {
+            io->putChar('\n');
+        }
     }
 
     return EXIT_SUCCESS;
