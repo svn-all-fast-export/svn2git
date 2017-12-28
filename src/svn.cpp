@@ -68,12 +68,12 @@ class AprAutoPool
 public:
     inline AprAutoPool(apr_pool_t *parent = NULL)
         {
-		pool = svn_pool_create(parent);
-	}
-	inline ~AprAutoPool()
+            pool = svn_pool_create(parent);
+        }
+        inline ~AprAutoPool()
         {
-		svn_pool_destroy(pool);
-	}
+            svn_pool_destroy(pool);
+        }
 
     inline void clear() { svn_pool_clear(pool); }
     inline apr_pool_t *data() const { return pool; }
