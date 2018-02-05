@@ -785,7 +785,7 @@ void FastImportRepository::startFastImport()
         if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
             fastImport.start("git", QStringList() << "fast-import" << marksOptions);
         } else {
-            fastImport.start("/bin/cat", QStringList());
+            fastImport.start("cat", QStringList());
         }
         fastImport.waitForStarted(-1);
 
