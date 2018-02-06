@@ -10,10 +10,9 @@ if(!defined(APR_INCLUDE, var)) {
 }
 exists(local-config.pri):include(local-config.pri)
 
-VERSION = $$system(git --no-pager show --pretty=oneline --no-notes | head -1 | cut -b-40)
-    !isEmpty(VERSION){
-      VERSION = $${VERSION}
-    }
+if(!defined(VERSION, var)) {
+  VERSION = $$system(git --no-pager show --pretty=oneline --no-notes | head -1 | cut -b-40)
+}
 
 VERSTR = '\\"$${VERSION}\\"'  # place quotes around the version string
 DEFINES += VER=\"$${VERSTR}\" # create a VER macro containing the version string
