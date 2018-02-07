@@ -19,6 +19,15 @@ DEFINES += VER=\"$${VERSTR}\" # create a VER macro containing the version string
 
 TEMPLATE = app
 TARGET = ../svn-all-fast-export
+
+isEmpty(PREFIX) {
+    PREFIX = /usr/local
+}
+BINDIR = $$PREFIX/bin
+
+INSTALLS += target
+target.path = $$BINDIR
+
 DEPENDPATH += .
 QT = core
 
