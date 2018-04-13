@@ -144,6 +144,7 @@ static const CommandLineOption options[] = {
     {"--empty-dirs", "Add .gitignore-file for empty dirs"},
     {"--svn-ignore", "Import svn-ignore-properties via .gitignore"},
     {"--propcheck", "Check for svn-properties except svn-ignore"},
+    {"--fast-import-timeout SECONDS", "number of seconds to wait before terminating fast-import, 0 to wait forever"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},
     CommandLineLastOption

@@ -468,10 +468,18 @@ FastImportRepository::~FastImportRepository()
 void FastImportRepository::closeFastImport()
 {
     if (fastImport.state() != QProcess::NotRunning) {
+        int fastImportTimeout = CommandLineParser::instance()->optionArgument(QLatin1String("fast-import-timeout"), QLatin1String("30")).toInt();
+        if(fastImportTimeout == 0) {
+            qDebug() << "Waiting forever for fast-import to finish.";
+            fastImportTimeout = -1;
+        } else {
+            qDebug() << "Waiting" << fastImportTimeout << "seconds for fast-import to finish.";
+            fastImportTimeout *= 10000;
+        }
         fastImport.write("checkpoint\n");
         fastImport.waitForBytesWritten(-1);
         fastImport.closeWriteChannel();
-        if (!fastImport.waitForFinished()) {
+        if (!fastImport.waitForFinished(fastImportTimeout)) {
             fastImport.terminate();
             if (!fastImport.waitForFinished(200))
                 qWarning() << "WARN: git-fast-import for repository" << name << "did not die";
