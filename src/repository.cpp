@@ -127,7 +127,7 @@ private:
     /* starts at 0, and counts up.  */
     mark_t last_commit_mark;
 
-    /* starts at maxMark and counts down. Reset after each SVN revision */
+    /* starts at maxMark - 1 and counts down. Reset after each SVN revision */
     mark_t next_file_mark;
 
     bool processHasStarted;
@@ -267,7 +267,7 @@ static QString marksFileName(QString name)
 
 FastImportRepository::FastImportRepository(const Rules::Repository &rule)
     : name(rule.name), prefix(rule.forwardTo), fastImport(name), commitCount(0), outstandingTransactions(0),
-      last_commit_mark(0), next_file_mark(maxMark), processHasStarted(false)
+      last_commit_mark(0), next_file_mark(maxMark - 1), processHasStarted(false)
 {
     foreach (Rules::Repository::Branch branchRule, rule.branches) {
         Branch branch;
@@ -515,7 +515,7 @@ void FastImportRepository::reloadBranches()
 
         startFastImport();
         fastImport.write("reset refs/notes/commits\nfrom :" +
-                         QByteArray::number(maxMark + 1) +
+                         QByteArray::number(maxMark) +
                          "\n");
     }
 }
@@ -662,7 +662,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
 void FastImportRepository::forgetTransaction(Transaction *)
 {
     if (!--outstandingTransactions)
-        next_file_mark = maxMark;
+        next_file_mark = maxMark - 1;
 }
 
 void FastImportRepository::createAnnotatedTag(const QString &ref, const QString &svnprefix,
@@ -946,7 +946,7 @@ void FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
 
     QByteArray s("");
     s.append("commit refs/notes/commits\n");
-    s.append("mark :" + QByteArray::number(maxMark + 1) + "\n");
+    s.append("mark :" + QByteArray::number(maxMark) + "\n");
     s.append("committer " + author + " " + QString::number(datetime) + " +0000" + "\n");
     s.append("data " + QString::number(message.length()) + "\n");
     s.append(message + "\n");
