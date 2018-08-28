@@ -692,9 +692,9 @@ void FastImportRepository::createAnnotatedTag(const QString &ref, const QString 
         tagName.remove(0, 10);
 
     if (!annotatedTags.contains(tagName))
-        printf("Creating annotated tag %s (%s)\n", qPrintable(tagName), qPrintable(ref));
+        printf("\nCreating annotated tag %s (%s) for %s\n", qPrintable(tagName), qPrintable(ref), qPrintable(name));
     else
-        printf("Re-creating annotated tag %s\n", qPrintable(tagName));
+        printf("\nRe-creating annotated tag %s for %s\n", qPrintable(tagName), qPrintable(name));
 
     AnnotatedTag &tag = annotatedTags[tagName];
     tag.supportingRef = ref;
