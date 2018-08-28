@@ -934,6 +934,13 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
     }
 
+    if (rule.annotate) {
+        // create an annotated tag
+        fetchRevProps();
+        repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
+                                 epoch, log);
+    }
+
     return EXIT_SUCCESS;
 }
 
