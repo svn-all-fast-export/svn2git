@@ -119,6 +119,8 @@ private:
     int outstandingTransactions;
     QByteArray deletedBranches;
     QByteArray resetBranches;
+    QSet<QString> deletedBranchNames;
+    QSet<QString> resetBranchNames;
 
   /* Optional filter to fix up log messages */
     QProcess filterMsg;
@@ -614,10 +616,13 @@ int FastImportRepository::resetBranch(const QString &branch, int revnum, mark_t 
                      "progress SVN r" + QByteArray::number(revnum)
                      + " branch " + branch.toUtf8() + " = :" + QByteArray::number(mark)
                      + " # " + comment + "\n\n";
-    if(comment == "delete")
+    if(comment == "delete") {
         deletedBranches.append(backupCmd).append(cmd);
-    else
+        deletedBranchNames.insert(branchRef);
+    } else {
         resetBranches.append(backupCmd).append(cmd);
+        resetBranchNames.insert(branchRef);
+    }
 
     return EXIT_SUCCESS;
 }
@@ -632,6 +637,18 @@ void FastImportRepository::commit()
     fastImport.write(resetBranches);
     deletedBranches.clear();
     resetBranches.clear();
+    QSet<QString>::ConstIterator it = deletedBranchNames.constBegin();
+    for ( ; it != deletedBranchNames.constEnd(); ++it) {
+        QString tagName = *it;
+        if (resetBranchNames.contains(tagName))
+            continue;
+        if (tagName.startsWith("refs/tags/"))
+            tagName.remove(0, 10);
+        qDebug() << "Removing annotated tag" << tagName << "for" << name;
+        annotatedTags.remove(tagName);
+    }
+    deletedBranchNames.clear();
+    resetBranchNames.clear();
 }
 
 Repository::Transaction *FastImportRepository::newTransaction(const QString &branch, const QString &svnprefix,
