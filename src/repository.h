@@ -116,6 +116,7 @@ public:
                                 const QByteArray &commit = QByteArray()) = 0;
     };
     virtual int setupIncremental(int &cutoff) = 0;
+    virtual void restoreAnnotatedTags() = 0;
     virtual void restoreLog() = 0;
     virtual ~Repository() {}
 
