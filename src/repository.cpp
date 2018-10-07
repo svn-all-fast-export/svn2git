@@ -1005,8 +1005,11 @@ void FastImportRepository::Transaction::commit()
     if (br.created && !br.marks.isEmpty() && br.marks.last()) {
         parentmark = br.marks.last();
     } else {
-        qWarning() << "WARN: Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
-                   << revnum << "-- did you resume from the wrong revision?";
+        if (revnum > 1) {
+            // Any branch at revision 1 isn't going to exist, so lets not alarm the user.
+            qWarning() << "WARN: Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
+                       << revnum << "-- did you resume from the wrong revision?";
+        }
         br.created = revnum;
     }
     br.commits.append(revnum);
