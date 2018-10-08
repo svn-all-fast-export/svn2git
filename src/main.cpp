@@ -29,29 +29,29 @@
 #include "repository.h"
 #include "svn.h"
 
-QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
+QHash<QString, QString> loadIdentityMapFile(const QString &fileName)
 {
-    QHash<QByteArray, QByteArray> result;
-    if (fileName.isEmpty())
+    QHash<QString, QString> result;
+    if (fileName.isEmpty()) {
         return result;
-
+    }
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly)) {
         fprintf(stderr, "Could not open file %s: %s",
                 qPrintable(fileName), qPrintable(file.errorString()));
         return result;
     }
-
-    while (!file.atEnd()) {
-        QByteArray line = file.readLine();
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
         int comment_pos = line.indexOf('#');
         if (comment_pos != -1)
             line.truncate(comment_pos);
         line = line.trimmed();
         int space = line.indexOf(' ');
-        if (space == -1)
-            continue;           // invalid line
-
+        if (space == -1) {
+            continue;
+        }       // invalid line
         // Support git-svn author files, too
         // - svn2git native:  loginname Joe User <user@example.com>
         // - git-svn:         loginname = Joe User <user@example.com>
@@ -64,9 +64,8 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
           rightspace += 2;
         }
 
-        QByteArray realname = line.mid(rightspace).trimmed();
+        QString realname = line.mid(rightspace).trimmed();
         line.truncate(leftspace);
-
         result.insert(line, realname);
     };
     file.close();

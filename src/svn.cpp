@@ -58,7 +58,7 @@
 
 typedef QList<Rules::Match> MatchRuleList;
 typedef QHash<QString, Repository *> RepositoryHash;
-typedef QHash<QByteArray, QByteArray> IdentityHash;
+typedef QHash<QString, QString> IdentityHash;
 
 class AprAutoPool
 {
@@ -403,7 +403,7 @@ public:
     int revnum;
 
     // must call fetchRevProps first:
-    QByteArray authorident;
+    QString authorident;
     QByteArray log;
     uint epoch;
     bool ruledebug;
@@ -575,9 +575,11 @@ int SvnRevision::fetchRevProps()
         log = svnlog->data;
     else
         log.clear();
-    authorident = svnauthor ? identities.value(svnauthor->data) : QByteArray();
+    QByteArray svnByteArray = QByteArray((char*)svnauthor->data, 10);
+    authorident = svnauthor ? identities.value(svnByteArray) : QString();
     epoch = svndate ? get_epoch(svndate->data) : 0;
     if (authorident.isEmpty()) {
+        printf("Author Identity NOT Found in file\n");
         if (!svnauthor || svn_string_isempty(svnauthor))
             authorident = "nobody <nobody@localhost>";
         else
@@ -598,7 +600,7 @@ int SvnRevision::commit()
     }
 
     foreach (Repository::Transaction *txn, transactions) {
-        txn->setAuthor(authorident);
+        txn->setAuthor(authorident.toUtf8());
         txn->setDateTime(epoch);
         txn->setLog(log);
 
@@ -852,7 +854,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             if (rule.annotate) {
                 // create an annotated tag
                 fetchRevProps();
-                repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
+                repo->createAnnotatedTag(branch, svnprefix, revnum, authorident.toUtf8(),
                                          epoch, log);
             }
             return EXIT_SUCCESS;
@@ -937,7 +939,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
     if (rule.annotate) {
         // create an annotated tag
         fetchRevProps();
-        repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
+        repo->createAnnotatedTag(branch, svnprefix, revnum, authorident.toUtf8(),
                                  epoch, log);
     }
 
