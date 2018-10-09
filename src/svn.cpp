@@ -602,7 +602,8 @@ int SvnRevision::commit()
         txn->setDateTime(epoch);
         txn->setLog(log);
 
-        txn->commit();
+        if (txn->commit() != EXIT_SUCCESS)
+            return EXIT_FAILURE;
         delete txn;
     }
 

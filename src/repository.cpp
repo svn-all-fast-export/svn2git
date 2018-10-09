@@ -53,7 +53,7 @@ public:
         inline Transaction() {}
     public:
         ~Transaction();
-        void commit();
+        int commit();
 
         void setAuthor(const QByteArray &author);
         void setDateTime(uint dt);
@@ -162,7 +162,7 @@ public:
     public:
         Transaction(Repository::Transaction *t, const QString &p) : txn(t), prefix(p) {}
         ~Transaction() { delete txn; }
-        void commit() { txn->commit(); }
+        int commit() { return txn->commit(); }
 
         void setAuthor(const QByteArray &author) { txn->setAuthor(author); }
         void setDateTime(uint dt) { txn->setDateTime(dt); }
@@ -978,12 +978,21 @@ void FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
     }
 }
 
-void FastImportRepository::Transaction::commit()
+int FastImportRepository::Transaction::commit()
 {
+    foreach (QString branchName, repository->branches.keys())
+    {
+        if (branchName.toUtf8().startsWith(branch + "/") || branch.startsWith((branchName + "/").toUtf8()))
+        {
+            qCritical() << "Branch" << branch << "conflicts with already existing branch" << branchName;
+            return EXIT_FAILURE;
+        }
+    }
+
     repository->startFastImport();
 
     // We might be tempted to use the SVN revision number as the fast-import commit mark.
-    // However, a single SVN revision can modify multple branches, and thus lead to multiple
+    // However, a single SVN revision can modify multiple branches, and thus lead to multiple
     // commits in the same repo.  So, we need to maintain a separate commit mark counter.
     mark_t  mark = ++repository->last_commit_mark;
 
@@ -1082,4 +1091,6 @@ void FastImportRepository::Transaction::commit()
     while (repository->fastImport.bytesToWrite())
         if (!repository->fastImport.waitForBytesWritten(-1))
             qFatal("Failed to write to process: %s for repository %s", qPrintable(repository->fastImport.errorString()), qPrintable(repository->name));
+
+    return EXIT_SUCCESS;
 }
