@@ -101,7 +101,7 @@ public:
         Transaction() {}
     public:
         virtual ~Transaction() {}
-        virtual void commit() = 0;
+        virtual int commit() = 0;
 
         virtual void setAuthor(const QByteArray &author) = 0;
         virtual void setDateTime(uint dt) = 0;
