@@ -1,0 +1,210 @@
+SVN-fs-dump-format-version: 2
+
+UUID: ed233cc6-8626-614d-8866-28837ce1aded
+
+Revision-number: 0
+Prop-content-length: 56
+Content-length: 56
+
+K 8
+svn:date
+V 27
+2018-03-27T13:38:38.935000Z
+PROPS-END
+
+Revision-number: 1
+Prop-content-length: 127
+Content-length: 127
+
+K 10
+svn:author
+V 7
+gebaehr
+K 8
+svn:date
+V 27
+2018-03-27T13:38:41.859085Z
+K 7
+svn:log
+V 25
+Imported folder structure
+PROPS-END
+
+Node-path: branches
+Node-kind: dir
+Node-action: add
+Prop-content-length: 10
+Content-length: 10
+
+PROPS-END
+
+
+Node-path: tags
+Node-kind: dir
+Node-action: add
+Prop-content-length: 10
+Content-length: 10
+
+PROPS-END
+
+
+Node-path: trunk
+Node-kind: dir
+Node-action: add
+Prop-content-length: 10
+Content-length: 10
+
+PROPS-END
+
+
+Revision-number: 2
+Prop-content-length: 149
+Content-length: 149
+
+K 10
+svn:author
+V 7
+gebaehr
+K 8
+svn:date
+V 27
+2018-03-27T13:41:30.393785Z
+K 7
+svn:log
+V 47
+add folder folder_a and file folder_a/file1.txt
+PROPS-END
+
+Node-path: trunk/folder_a
+Node-kind: dir
+Node-action: add
+Prop-content-length: 10
+Content-length: 10
+
+PROPS-END
+
+
+Node-path: trunk/folder_a/file1.txt
+Node-kind: file
+Node-action: add
+Text-content-md5: cfb2a3740155c041d2c3e13ad1d66644
+Text-content-sha1: 54d1baa10332905f39dfc12c8386cf035b1f4da6
+Prop-content-length: 10
+Text-content-length: 15
+Content-length: 25
+
+PROPS-END
+This is file 1.
+
+Revision-number: 3
+Prop-content-length: 123
+Content-length: 123
+
+K 10
+svn:author
+V 7
+gebaehr
+K 8
+svn:date
+V 27
+2018-03-27T13:42:02.741253Z
+K 7
+svn:log
+V 21
+create branch branch1
+PROPS-END
+
+Node-path: branches/branch1
+Node-kind: dir
+Node-action: add
+Node-copyfrom-rev: 2
+Node-copyfrom-path: trunk
+
+
+Revision-number: 4
+Prop-content-length: 163
+Content-length: 163
+
+K 10
+svn:author
+V 7
+gebaehr
+K 8
+svn:date
+V 27
+2018-03-27T13:43:10.872377Z
+K 7
+svn:log
+V 61
+delete file folder_a/file1.txt + add file  folder_a/file2.txt
+PROPS-END
+
+Node-path: trunk/folder_a/file2.txt
+Node-kind: file
+Node-action: add
+Text-content-md5: 500d703f270d4bc034e159480c83d329
+Text-content-sha1: 45b3cee9ee00b3f683e33edcf5442dc6c3a36091
+Prop-content-length: 10
+Text-content-length: 15
+Content-length: 25
+
+PROPS-END
+This is file 2.
+
+Node-path: trunk/folder_a/file1.txt
+Node-action: delete
+
+
+Revision-number: 5
+Prop-content-length: 123
+Content-length: 123
+
+K 10
+svn:author
+V 7
+gebaehr
+K 8
+svn:date
+V 27
+2018-03-27T13:43:37.615224Z
+K 7
+svn:log
+V 21
+create branch branch2
+PROPS-END
+
+Node-path: branches/branch2
+Node-kind: dir
+Node-action: add
+Node-copyfrom-rev: 4
+Node-copyfrom-path: trunk
+
+
+Revision-number: 6
+Prop-content-length: 154
+Content-length: 154
+
+K 10
+svn:author
+V 7
+gebaehr
+K 8
+svn:date
+V 27
+2018-03-27T13:44:49.516102Z
+K 7
+svn:log
+V 52
+replace folder_a of branch1 with folder_a of branch2
+PROPS-END
+
+Node-path: branches/branch1/folder_a
+Node-action: delete
+
+Node-path: branches/branch1/folder_a
+Node-kind: dir
+Node-action: add
+Node-copyfrom-rev: 5
+Node-copyfrom-path: branches/branch2/folder_a
+
+

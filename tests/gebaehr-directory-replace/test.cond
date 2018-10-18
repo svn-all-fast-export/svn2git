@@ -1,0 +1,25 @@
+test_cond() {
+
+  branch="branch1"
+  expect="folder_a/file2.txt"
+  reject="folder_a/file1.txt"
+
+  TEST_CONDITION "'$branch' should contain $expect and not $reject"
+
+  git checkout --track origin/branch1 || {
+    TEST_FAIL "Couldn't check out branch1"
+    return 1
+  }
+
+  # Show the user what's present
+  ls -R | indent_output "${branch} listing (ls -R)"
+
+  if [ -f "${reject}" ]; then
+    TEST_FAIL "$branch:$reject is present when it shouldn't be"
+  fi
+
+  if [ ! -f "${expect}" ]; then
+    TEST_FAIL "$branch:$expect is not present when it should be"
+  fi
+}
+
