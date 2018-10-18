@@ -102,6 +102,30 @@ private:
     svn_revnum_t youngest_rev;
 };
 
+// Determine whether a change_kind results in the distinct removal of items,
+// either an explicit delete or a replace of a directory.
+static bool doesChangeRemove(svn_fs_path_change_kind_t change_kind, bool is_dir)
+{
+    switch (change_kind)
+    {
+        case svn_fs_path_change_delete:     return true;
+        case svn_fs_path_change_replace:    return is_dir;
+        default:                            return false;
+    }
+}
+
+// Determine whether a change kind results in the distinct addition of
+// items - either it's an explicit add or a replace of a directory.
+static bool doesChangeAdd(svn_fs_path_change_kind_t change_kind, bool is_dir)
+{
+    switch (change_kind)
+    {
+        case svn_fs_path_change_add:        return true;
+        case svn_fs_path_change_replace:    return is_dir;
+        default:                            return false;
+    }
+}
+
 void Svn::initialize()
 {
     // initialize APR or exit
@@ -879,20 +903,40 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         txn->noteCopyFromBranch (prevbranch, rev_from);
     }
 
-    if (change->change_kind == svn_fs_path_change_replace && path_from == NULL) {
-        if(ruledebug)
-            qDebug() << "replaced with empty path (" << branch << path << ")";
-        txn->deleteFile(path);
+	//
+	// svn_fs_path_change_replace of a directory is treated by svn as a
+	// deletion of the original content followed by addition of the
+	// copy:
+	//		D  branches/b1/folder
+	//		A  branches/b1/folder from branches/b2/folder
+	//
+	// So it is possible we will both add and delete in the same transaction
+
+	// Is this a change to a path or a file?
+    const bool is_dir = current.endsWith('/');
+	// Does this change require deletion of the path?
+    const bool does_removal = doesChangeRemove(change->change_kind, is_dir);
+	// Does this change require addition of the path.
+    const bool does_add  = doesChangeAdd(change->change_kind, is_dir);
+
+    if (change->change_kind == svn_fs_path_change_replace) {
+        if(ruledebug) {
+            if (path_from == NULL)
+                qDebug() << "replaced with empty path (" << branch << path << ")";
+            else if (current.endsWith('/'))  // directory
+                qDebug() << "replaced from " << branch << path;
+        }
     }
-    if (change->change_kind == svn_fs_path_change_delete) {
+    if (does_removal) {
         if(ruledebug)
             qDebug() << "delete (" << branch << path << ")";
         txn->deleteFile(path);
-    } else if (!current.endsWith('/')) {
+    }
+    if (does_add && !is_dir) {
         if(ruledebug)
             qDebug() << "add/change file (" << key << "->" << branch << path << ")";
         dumpBlob(txn, fs_root, key, path, pool);
-    } else {
+    } else if (does_add) {
         if(ruledebug)
             qDebug() << "add/change dir (" << key << "->" << branch << path << ")";
 
