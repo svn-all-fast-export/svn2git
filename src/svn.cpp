@@ -923,8 +923,6 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         if (CommandLineParser::instance()->contains("empty-dirs") && ignoreSet == false) {
             if (addGitIgnore(pool, key, path, fs_root, txn) == EXIT_SUCCESS) {
                 return EXIT_SUCCESS;
-            } else {
-                ignoreSet = true;
             }
         }
 
