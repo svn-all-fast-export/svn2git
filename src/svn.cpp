@@ -919,6 +919,10 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             }
         }
 
+        if (ignoreSet == false) {
+            txn->deleteFile(path);
+        }
+
         // Add GitIgnore for empty directories (if GitIgnore was not set previously)
         if (CommandLineParser::instance()->contains("empty-dirs") && ignoreSet == false) {
             if (addGitIgnore(pool, key, path, fs_root, txn) == EXIT_SUCCESS) {
@@ -926,9 +930,6 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             }
         }
 
-        if (ignoreSet == false) {
-            txn->deleteFile(path);
-        }
         recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
     }
 
