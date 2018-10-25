@@ -713,8 +713,9 @@ void FastImportRepository::commit()
             continue;
         if (tagName.startsWith("refs/tags/"))
             tagName.remove(0, 10);
-        qDebug() << "Removing annotated tag" << tagName << "for" << name;
-        annotatedTags.remove(tagName);
+        if (annotatedTags.remove(tagName) > 0) {
+            qDebug() << "Removing annotated tag" << tagName << "for" << name;
+        }
     }
     deletedBranchNames.clear();
     resetBranchNames.clear();
