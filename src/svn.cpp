@@ -179,7 +179,9 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
     QString path = pathToRepository;
     while (path.endsWith('/')) // no trailing slash allowed
         path = path.mid(0, path.length()-1);
-#if SVN_VER_MAJOR == 1 && SVN_VER_MINOR < 9
+#if SVN_VER_MAJOR == 1 && SVN_VER_MINOR < 7
+    SVN_ERR(svn_repos_open(&repos, QFile::encodeName(path), global_pool));
+#elif SVN_VER_MAJOR == 1 && SVN_VER_MINOR < 9
     SVN_ERR(svn_repos_open2(&repos, QFile::encodeName(path), NULL, global_pool));
 #else
     SVN_ERR(svn_repos_open3(&repos, QFile::encodeName(path), NULL, global_pool, scratch_pool));
