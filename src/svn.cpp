@@ -602,7 +602,8 @@ int SvnRevision::commit()
         txn->setDateTime(epoch);
         txn->setLog(log);
 
-        txn->commit();
+        if (txn->commit() != EXIT_SUCCESS)
+            return EXIT_FAILURE;
         delete txn;
     }
 
@@ -640,7 +641,7 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change2_t *chang
         //qDebug() << "Adding directory:" << key;
     }
     // svn:ignore-properties
-    else if (is_dir && (change->change_kind == svn_fs_path_change_add || change->change_kind == svn_fs_path_change_modify)
+    else if (is_dir && (change->change_kind == svn_fs_path_change_add || change->change_kind == svn_fs_path_change_modify || change->change_kind == svn_fs_path_change_replace)
              && path_from == NULL && CommandLineParser::instance()->contains("svn-ignore")) {
         needCommit = true;
     }
@@ -897,17 +898,18 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             qDebug() << "add/change dir (" << key << "->" << branch << path << ")";
 
         // Check unknown svn-properties
-        if (((path_from == NULL && change->prop_mod==1) || (path_from != NULL && change->change_kind == svn_fs_path_change_add))
+        if (((path_from == NULL && change->prop_mod==1) || (path_from != NULL && (change->change_kind == svn_fs_path_change_add || change->change_kind == svn_fs_path_change_replace)))
             && CommandLineParser::instance()->contains("propcheck")) {
             if (fetchUnknownProps(pool, key, fs_root) != EXIT_SUCCESS) {
                 qWarning() << "Error checking svn-properties (" << key << ")";
             }
         }
 
-        int ignoreSet = false;
+        txn->deleteFile(path);
 
         // Add GitIgnore with svn:ignore
-        if (((path_from == NULL && change->prop_mod==1) || (path_from != NULL && change->change_kind == svn_fs_path_change_add))
+        int ignoreSet = false;
+        if (((path_from == NULL && change->prop_mod==1) || (path_from != NULL && (change->change_kind == svn_fs_path_change_add || change->change_kind == svn_fs_path_change_replace)))
             && CommandLineParser::instance()->contains("svn-ignore")) {
             QString svnignore;
             // TODO: Check if svn:ignore or other property was changed, but always set on copy/rename (path_from != NULL)
@@ -923,14 +925,9 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         if (CommandLineParser::instance()->contains("empty-dirs") && ignoreSet == false) {
             if (addGitIgnore(pool, key, path, fs_root, txn) == EXIT_SUCCESS) {
                 return EXIT_SUCCESS;
-            } else {
-                ignoreSet = true;
             }
         }
 
-        if (ignoreSet == false) {
-            txn->deleteFile(path);
-        }
         recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
     }
 

@@ -212,6 +212,7 @@ int main(int argc, char **argv)
 
         int repo_next = repo->setupIncremental(cutoff);
         repo->restoreAnnotatedTags();
+        repo->restoreBranchNotes();
 
         /*
   * cutoff < resume_from => error exit eventually
@@ -283,6 +284,7 @@ int main(int argc, char **argv)
 
     foreach (Repository *repo, repositories) {
         repo->finalizeTags();
+        repo->saveBranchNotes();
         delete repo;
     }
     Stats::instance()->printStats();

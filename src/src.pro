@@ -28,7 +28,7 @@ DEPENDPATH += .
 QT = core
 
 INCLUDEPATH += . $$SVN_INCLUDE $$APR_INCLUDE
-!isEmpty($$SVN_LIBDIR): LIBS += -L$$SVN_LIBDIR
+!isEmpty(SVN_LIBDIR): LIBS += -L$$SVN_LIBDIR
 LIBS += -lsvn_fs-1 -lsvn_repos-1 -lapr-1 -lsvn_subr-1
 
 # Input
