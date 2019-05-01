@@ -78,7 +78,6 @@ public:
     };
     FastImportRepository(const Rules::Repository &rule);
     int setupIncremental(int &cutoff);
-    void restoreAnnotatedTags();
     void restoreBranchNotes();
     void restoreLog();
     ~FastImportRepository();
@@ -186,7 +185,6 @@ public:
     ForwardingRepository(const QString &n, Repository *r, const QString &p) : name(n), repo(r), prefix(p) {}
 
     int setupIncremental(int &) { return 1; }
-    void restoreAnnotatedTags() {}
     void restoreBranchNotes() {}
     void restoreLog() {}
 
@@ -254,33 +252,6 @@ public:
 };
 static ProcessCache processCache;
 
-QDataStream &operator<<(QDataStream &out, const FastImportRepository::AnnotatedTag &annotatedTag)
-{
-    out << annotatedTag.supportingRef
-        << annotatedTag.svnprefix
-        << annotatedTag.author
-        << annotatedTag.log
-        << (quint64) annotatedTag.dt
-        << (qint64) annotatedTag.revnum;
-    return out;
-}
-
-QDataStream &operator>>(QDataStream &in, FastImportRepository::AnnotatedTag &annotatedTag)
-{
-    quint64 dt;
-    qint64 revnum;
-
-    in >> annotatedTag.supportingRef
-       >> annotatedTag.svnprefix
-       >> annotatedTag.author
-       >> annotatedTag.log
-       >> dt
-       >> revnum;
-    annotatedTag.dt = (uint) dt;
-    annotatedTag.revnum = (int) revnum;
-    return in;
-}
-
 Repository *createRepository(const Rules::Repository &rule, const QHash<QString, Repository *> &repositories)
 {
     if (rule.forwardTo.isEmpty())
@@ -297,13 +268,6 @@ static QString marksFileName(QString name)
 {
     name.replace('/', '_');
     name.prepend("marks-");
-    return name;
-}
-
-static QString annotatedTagsFileName(QString name)
-{
-    name.replace('/', '_');
-    name.prepend("annotatedTags-");
     return name;
 }
 
@@ -496,17 +460,6 @@ int FastImportRepository::setupIncremental(int &cutoff)
     qDebug() << name << "truncating history to revision" << cutoff;
     logfile.resize(pos);
     return cutoff;
-}
-
-void FastImportRepository::restoreAnnotatedTags()
-{
-    QFile annotatedTagsFile(name + "/" + annotatedTagsFileName(name));
-    if (!annotatedTagsFile.exists())
-        return;
-    annotatedTagsFile.open(QIODevice::ReadOnly);
-    QDataStream annotatedTagsStream(&annotatedTagsFile);
-    annotatedTagsStream >> annotatedTags;
-    annotatedTagsFile.close();
 }
 
 void FastImportRepository::restoreBranchNotes()
@@ -780,13 +733,7 @@ void FastImportRepository::finalizeTags()
     if (annotatedTags.isEmpty())
         return;
 
-    QFile annotatedTagsFile(name + "/" + annotatedTagsFileName(name));
-    annotatedTagsFile.open(QIODevice::WriteOnly);
-    QDataStream annotatedTagsStream(&annotatedTagsFile);
-    annotatedTagsStream << annotatedTags;
-    annotatedTagsFile.close();
-
-    printf("Finalising annotated tags for %s...", qPrintable(name));
+    printf("Finalising tags for %s...", qPrintable(name));
     startFastImport();
 
     QHash<QString, AnnotatedTag>::ConstIterator it = annotatedTags.constBegin();
