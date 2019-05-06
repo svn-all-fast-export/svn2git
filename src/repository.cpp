@@ -19,11 +19,11 @@
 #include "repository.h"
 #include "CommandLineParser.h"
 #include <QTextStream>
+#include <QDataStream>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QLinkedList>
-#include <QDataStream>
 
 static const int maxSimultaneousProcesses = 100;
 
