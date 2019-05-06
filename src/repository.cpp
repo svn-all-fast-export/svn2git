@@ -23,6 +23,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLinkedList>
+#include <QDataStream>
 
 static const int maxSimultaneousProcesses = 100;
 
