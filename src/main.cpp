@@ -211,6 +211,7 @@ int main(int argc, char **argv)
         repositories.insert(rule.name, repo);
 
         int repo_next = repo->setupIncremental(cutoff);
+        repo->restoreAnnotatedTags();
         repo->restoreBranchNotes();
 
         /*
