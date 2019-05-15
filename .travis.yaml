@@ -1,0 +1,13 @@
+language: c++
+dist: xenial
+
+addons:
+  apt:
+    sources:
+      - sourceline: deb http://us.archive.ubuntu.com/ubuntu/ xenial-backports main restricted universe multiverse
+      - sourceline: deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates main restricted
+
+before_install:
+  - sudo apt update
+  - sudo apt install -y build-essential subversion git qtchooser qt5-default libapr1 libapr1-dev libsvn-dev
+script: qmake && make
