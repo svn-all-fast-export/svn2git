@@ -16,6 +16,15 @@ If you have a proper ruleset the tool will create the git repositories for you a
 
 After it is done you likely want to run `git repack -a -d -f` to compress the pack file as it can get quite big.
 
+Running as Docker image
+-----------------------
+Just mount your SVN folder, plus another working directory where Git repository will be created.
+Sample usage with input mounted in /tmp and output produced in /workdir:
+```
+docker build -t svn2git .
+docker run --rm -it -v `pwd`/workdir:/workdir -v /var/lib/svn/project1:/tmp/svn -v `pwd`/conf:/tmp/conf svn2git /usr/local/svn2git/svn-all-fast-export --identity-map /tmp/conf/project1.authors --rules /tmp/conf/project1.rules --add-metadata --svn-branches --debug-rules --svn-ignore --empty-dirs /tmp/svn/ 
+```
+
 Building the tool
 -----------------
 Run `qmake && make`.  You get `./svn-all-fast-export`.
