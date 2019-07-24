@@ -439,6 +439,10 @@ public:
                 apr_hash_t *changes, apr_pool_t *pool);
     int addGitIgnore(apr_pool_t *pool, const char *key, QString path,
                      svn_fs_root_t *fs_root, Repository::Transaction *txn, const char *content = NULL);
+    int checkParentNotEmpty(apr_pool_t *pool, const char *key, QString path,
+                            svn_fs_root_t *fs_root, Repository::Transaction *txn);
+    int addGitIgnoreOnBranch(apr_pool_t *pool, QString key, QString path,
+                             svn_fs_root_t *fs_root, Repository::Transaction *txn);
     int fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char *key, svn_fs_root_t *fs_root);
     int fetchUnknownProps(apr_pool_t *pool, const char *key, svn_fs_root_t *fs_root);
 private:
@@ -833,8 +837,29 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                          << qPrintable(prevbranch);
             }
 
-            if (repo->createBranch(branch, revnum, prevbranch, rev_from) == EXIT_FAILURE)
+            if (repo->createBranch(branch, revnum, prevbranch, rev_from) == EXIT_FAILURE) {
                 return EXIT_FAILURE;
+            }
+
+            if(CommandLineParser::instance()->contains("empty-dirs")) {
+                Repository::Transaction *txn = transactions.value(repository + branch, 0);
+                if (!txn) {
+                    txn = repo->newTransaction(branch, svnprefix, revnum);
+                    if (!txn)
+                        return EXIT_FAILURE;
+                    transactions.insert(repository + branch, txn);
+                }
+
+                AprAutoPool pool_from(pool.data());
+                svn_fs_root_t *fs_root_from;
+                if (svn_fs_revision_root(&fs_root_from, fs, rev_from, pool_from) != SVN_NO_ERROR) {
+                    return EXIT_FAILURE;
+                }
+
+                QString qkey = QString::fromUtf8(key);
+                addGitIgnoreOnBranch(pool_from, qkey, "", fs_root_from, txn);
+            }
+
 
             if(CommandLineParser::instance()->contains("svn-branches")) {
                 Repository::Transaction *txn = transactions.value(repository + branch, 0);
@@ -848,6 +873,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                 if(ruledebug)
                     qDebug() << "Create a true SVN copy of branch (" << key << "->" << branch << path << ")";
                 txn->deleteFile(path);
+                checkParentNotEmpty(pool, key, path, fs_root, txn);
                 recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
             }
             if (rule.annotate) {
@@ -884,11 +910,13 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         if(ruledebug)
             qDebug() << "replaced with empty path (" << branch << path << ")";
         txn->deleteFile(path);
+        checkParentNotEmpty(pool, key, path, fs_root, txn);
     }
     if (change->change_kind == svn_fs_path_change_delete) {
         if(ruledebug)
             qDebug() << "delete (" << branch << path << ")";
         txn->deleteFile(path);
+        checkParentNotEmpty(pool, key, path, fs_root, txn);
     } else if (!current.endsWith('/')) {
         if(ruledebug)
             qDebug() << "add/change file (" << key << "->" << branch << path << ")";
@@ -906,6 +934,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         }
 
         txn->deleteFile(path);
+        checkParentNotEmpty(pool, key, path, fs_root, txn);
 
         // Add GitIgnore with svn:ignore
         int ignoreSet = false;
@@ -1043,6 +1072,78 @@ int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
         QIODevice *io = txn->addFile(gitIgnorePath, 33188, 0);
         if (!CommandLineParser::instance()->contains("dry-run")) {
             io->putChar('\n');
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::checkParentNotEmpty(apr_pool_t *pool, const char *key, QString path,
+                                     svn_fs_root_t *fs_root, Repository::Transaction *txn)
+{
+    if (!CommandLineParser::instance()->contains("empty-dirs")) {
+      return EXIT_FAILURE;
+    }
+    QString slash = "/";
+    QString qkey = QString::fromUtf8(key);
+    while (qkey.endsWith('/'))
+        qkey = qkey.mid(0, qkey.length()-1);
+    int index = qkey.lastIndexOf(slash);
+    if (index == -1) {
+        return EXIT_FAILURE;
+    }
+    QString parentKey = qkey.left(index);
+
+    apr_hash_t *entries;
+    SVN_ERR(svn_fs_dir_entries(&entries, fs_root, parentKey.toStdString().c_str(), pool));
+    if (apr_hash_count(entries)!=0) {
+        return EXIT_FAILURE;
+    }
+
+    QString cleanPath = path;
+    while (cleanPath.endsWith('/'))
+        cleanPath = cleanPath.mid(0, cleanPath.length()-1);
+    index = cleanPath.lastIndexOf(slash);
+    QString parentPath = cleanPath.left(index);
+
+    // Add gitignore-File
+    QString gitIgnorePath = parentPath + "/.gitignore";
+    QIODevice *io = txn->addFile(gitIgnorePath, 33188, 0);
+    if (!CommandLineParser::instance()->contains("dry-run")) {
+      io->putChar('\n');
+    }
+
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::addGitIgnoreOnBranch(apr_pool_t *pool, QString key, QString path,
+                                      svn_fs_root_t *fs_root, Repository::Transaction *txn)
+{
+    apr_hash_t *entries;
+    if (svn_fs_dir_entries(&entries, fs_root, key.toStdString().c_str(), pool) != SVN_NO_ERROR) {
+        return EXIT_FAILURE;
+    }
+
+    QMap<QByteArray, svn_node_kind_t> map;
+    for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
+        const void *vkey;
+        void *value;
+        apr_hash_this(i, &vkey, NULL, &value);
+        svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+        map.insertMulti(QByteArray(dirent->name), dirent->kind);
+    }
+
+    QMapIterator<QByteArray, svn_node_kind_t> i(map);
+    while (i.hasNext()) {
+        i.next();
+        QString entryName = key + "/" + i.key();
+        QString entryFinalName = path + QString::fromUtf8(i.key());
+
+        if (i.value() == svn_node_dir) {
+            entryFinalName += "/";
+            if (addGitIgnore(pool, entryName.toStdString().c_str(), entryFinalName, fs_root, txn) == EXIT_FAILURE) {
+                addGitIgnoreOnBranch(pool, entryName, entryFinalName, fs_root, txn);
+            }
         }
     }
 
