@@ -42,6 +42,57 @@ Write the Rules
 You need to write a rules file that describes how to slice the Subversion history into Git repositories and branches. See https://techbase.kde.org/Projects/MoveToGit/UsingSvn2Git.
 The rules are also documented in the 'samples' directory of the svn2git repository. Feel free to add more documentation here as well.
 
+Rules
+-----
+### `create respository`
+
+```
+create repository REPOSITORY NAME
+  [PARAMETERS...]
+end repository
+```
+
+`PARAMETERS` is any number of:
+
+- `repository TARGET REPOSITORY` Creates a forwarding repository , which allows for redirecting to another repository, typically with some `prefix`.
+- `prefix PREFIX` prefixes each file with `PREFIX`, allowing for merging repositories.
+- `description DESCRIPTION TEXT` writes a `DESCRIPTION TEXT` to the `description` file in the repository
+
+### `match`
+
+```
+match REGEX
+  [PARAMETERS...]
+end match
+```
+
+Creates a rule that matches paths by `REGEX` and applies some `PARAMETERS` to them. Matching groups can be created, and the values used in the parameters.
+
+`PARAMETERS` is any number of:
+
+- `repository TARGET REPOSITORY` determines the repository
+- `branch BRANCH NAME` determines which branch this path will be placed in. Can also be used to make lightweight tags with `refs/tags/TAG NAME` although note that tags in SVN are not always a single commit, and will not be created correctly unless they are a single copy from somewhere else, with no further changes. See also `annotate true` to make them annotated tags.
+- `[min|max] revision REVISION NUMBER` only match if revision is above/below the specified revision number
+- `prefix PREFIX` prefixes each file with `PREFIX`, allowing for merging repositories. Same as when used in a `create repository` stanza.
+  - Note that this will create a separate commit for each prefix matched, even if they were in the same SVN revision.
+- `substitute [repository|branch] s/PATTERN/REPLACEMENT/` performs a regex substitution on the repository or branch name. Useful when eliminating characters not supported in git branch names.
+- `action ACTION` determines the action to take, from the below three:
+
+  - `export` I have no idea what this does
+  - `ignore` ignores this path
+  - `recurse` tells svn2git to ignore this path and continue searching it's children.
+
+- `annotate true` creates annotated tags instead of lightweight tags
+
+### `include FILENAME`
+
+Include the contents of another rules file
+
+### `declare VAR=VALUE`
+
+Define variables that can be referenced later. `${VAR}` in any line will be replaced by `VALUE`.
+
+
 Work flow
 ---------
 Please feel free to fill this section in.
