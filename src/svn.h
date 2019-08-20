@@ -35,7 +35,7 @@ public:
 
     void setMatchRules(const QList<QList<Rules::Match> > &matchRules);
     void setRepositories(const QHash<QString, Repository *> &repositories);
-    void setIdentityMap(const QHash<QByteArray, QByteArray> &identityMap);
+    void setIdentityMap(const QHash<QString, QString> &identityMap);
     void setIdentityDomain(const QString &identityDomain);
 
     int youngestRevision();
