@@ -42,6 +42,7 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
         return result;
     }
 
+    bool found_author;
     while (!file.atEnd()) {
         QByteArray line = file.readLine();
         int comment_pos = line.indexOf('#');
@@ -68,9 +69,13 @@ QHash<QByteArray, QByteArray> loadIdentityMapFile(const QString &fileName)
         line.truncate(leftspace);
 
         result.insert(line, realname);
+        found_author = true;
     };
     file.close();
 
+    if(!found_author) {
+        fprintf(stderr, "No authors found in identity-map file. Check supported formats.\n");
+    }
     return result;
 }
 
