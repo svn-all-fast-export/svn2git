@@ -1,0 +1,54 @@
+#
+# Copyright (C) 2020  Sebastian Pipping <sebastian@pipping.org>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+name: Build (Linux, Ubuntu 18.04)
+
+on:
+- pull_request
+- push
+
+jobs:
+  build:
+    name: Build (Linux, Ubuntu 18.04)
+    runs-on: ubuntu-18.04
+    steps:
+      - name: 'Install build dependencies'
+        run: |-
+          set -e
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            libapr1-dev \
+            libsvn-dev \
+            qt5-default \
+            qtbase5-dev
+
+      - name: 'Checkout Git branch'
+        uses: actions/checkout@v2.0.0
+
+      - name: 'Configure'
+        run: |-
+          qmake
+
+      - name: 'Build'
+        run: |-
+          make
+
+      - name: 'Install'
+        run: |-
+          set -e
+          make INSTALL_ROOT="${PWD}"/ROOT install
+          find ROOT | sort
