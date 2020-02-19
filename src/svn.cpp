@@ -960,6 +960,10 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         }
 
         recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
+
+        if (CommandLineParser::instance()->contains("empty-dirs")) {
+            addGitIgnoreOnBranch(pool, key, path, fs_root, txn);
+        }
     }
 
     if (rule.annotate) {
