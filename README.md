@@ -33,6 +33,19 @@ Run `qmake && make`.  You get `./svn-all-fast-export`.
 You will need to have some packages to compile it. For Ubuntu distros, use this command to install them all:
 `sudo apt-get install build-essential subversion git qtchooser qt5-default libapr1 libapr1-dev libsvn-dev`
 
+To run all tests you can simply call the `test.sh` script in the root directory.
+This will run all [Bats](https://github.com/bats-core/bats-core) based tests
+found in `.bats` files in the directory `test`. Running the script will automatically
+execute `qmake` and `make` first to build the current code if necessary.
+If you want to run tests without running make, you can give `--no-make` as first parameter.
+If you want to only run a subset of the tests, you can specify the base-name of one
+or multiple `.bats` files to only run these tests like `./test.sh command-line svn-ignore`.
+If you want to investigate the temporary files generated during a test run,
+you can set the environment variables `BATSLIB_TEMP_PRESERVE=1` or `BATSLIB_TEMP_PRESERVE_ON_FAILURE=1`.
+So if for example some test in `svn-ignore.bats` failed, you can investigate the failed case like
+`BATSLIB_TEMP_PRESERVE_ON_FAILURE=1 ./test.sh --no-make svn-ignore` and then look
+in `build/tmp` to investigate the situation.
+
 KDE
 ---
 there is a repository kde-ruleset which has several example files and one file that should become the final ruleset for the whole of KDE called 'kde-rules-main'.

@@ -37,7 +37,9 @@ jobs:
             qtbase5-dev
 
       - name: 'Checkout Git branch'
-        uses: actions/checkout@v2.0.0
+        uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: 'Configure'
         run: |-
@@ -46,6 +48,10 @@ jobs:
       - name: 'Build'
         run: |-
           make
+
+      - name: 'Test'
+        run: |-
+          ./test.sh --no-make
 
       - name: 'Install'
         run: |-
