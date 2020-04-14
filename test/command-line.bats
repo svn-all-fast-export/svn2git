@@ -55,3 +55,15 @@ setup() {
     assert_success
     assert_output --partial 'Usage:'
 }
+
+@test 'not giving a repository should exist with non-zero exit code and print usage' {
+    run svn2git
+    assert_failure 12
+    assert_output --partial 'Usage:'
+}
+
+@test 'giving mutliple repositories should exist with non-zero exit code and print usage' {
+    run svn2git repo-a repo-b
+    assert_failure 12
+    assert_output --partial 'Usage:'
+}
