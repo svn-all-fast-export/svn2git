@@ -14,7 +14,7 @@ commonSetup() {
     SVN_REPO="$TEST_TEMP_DIR/svn-repo"
     SVN_WORKTREE="$TEST_TEMP_DIR/svn-worktree"
 
-    cp -a "$BATS_TEST_DIRNAME/base-fixture" "$SVN_REPO"
+    tar xf "$BATS_TEST_DIRNAME/base-fixture.tar" --one-top-level="$SVN_REPO"
     svn checkout "file:///$SVN_REPO" "$SVN_WORKTREE"
     cd "$SVN_WORKTREE"
 }

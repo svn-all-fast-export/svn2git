@@ -5,6 +5,7 @@ set -euo pipefail
 # Ensure needed tools are present
 svn --version >/dev/null
 git --version >/dev/null
+tar --version >/dev/null
 
 # Determine SCRIPT_DIR
 # Resolve links: $0 may be a link
