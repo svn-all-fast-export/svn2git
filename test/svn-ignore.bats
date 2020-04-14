@@ -360,6 +360,58 @@ load 'common'
     assert git -C git-repo show master:dir-a/file-a
 }
 
+@test 'svn-ignore translation should be done properly on the root directory' {
+    svn propset svn:ignore $'ignore-a\nignore-b' .
+    svn commit -m 'ignore ignore-a and ignore-b on root'
+    svn propset svn:global-ignores 'ignore-c' .
+    svn commit -m 'ignore ignore-c on root and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:.gitignore)" "$(cat <<-EOF
+			/ignore-a
+			/ignore-b
+			ignore-c
+		EOF
+    )"
+}
+
+@test 'svn-ignore translation should be done properly on the root directory (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn propset svn:ignore $'ignore-a\nignore-b' .
+    svn commit -m 'ignore ignore-a and ignore-b on root'
+    svn propset svn:global-ignores 'ignore-c' .
+    svn commit -m 'ignore ignore-c on root and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:.gitignore)" "$(cat <<-EOF
+			/ignore-a
+			/ignore-b
+			ignore-c
+		EOF
+    )"
+}
+
 @test 'gitignore file should be removed if all svn-ignores are removed' {
     svn mkdir dir-a
     svn propset svn:ignore 'ignore-a' dir-a

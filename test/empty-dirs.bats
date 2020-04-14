@@ -318,6 +318,52 @@ load 'common'
     assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
 }
 
+@test 'deleting last file from root should not add empty .gitignore with empty-dirs-parameter' {
+    touch file-a
+    svn add file-a
+    svn commit -m 'add file-a'
+    svn rm file-a
+    svn commit -m 'delete file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:.gitignore
+    refute git -C git-repo show master:file-a/.gitignore
+}
+
+@test 'deleting last file from root should not add empty .gitignore with empty-dirs-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    touch file-a
+    svn add file-a
+    svn commit -m 'add file-a'
+    svn rm file-a
+    svn commit -m 'delete file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:.gitignore
+    refute git -C git-repo show master:file-a/.gitignore
+}
+
 @test 'deleting last directory from a directory should add empty .gitignore with empty-dirs-parameter' {
     svn mkdir --parents dir-a/subdir-a
     svn commit -m 'add dir-a/subdir-a'
@@ -412,6 +458,50 @@ load 'common'
     refute git -C git-repo show master:.gitignore
     assert git -C git-repo show master:dir-a/.gitignore
     assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'deleting last directory from root should not add empty .gitignore with empty-dirs-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn rm dir-a
+    svn commit -m 'delete dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:.gitignore
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'deleting last directory from root should not add empty .gitignore with empty-dirs-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn rm dir-a
+    svn commit -m 'delete dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:.gitignore
+    refute git -C git-repo show master:dir-a/.gitignore
 }
 
 @test 'copying an empty directory should put empty .gitignore file to copy with empty-dirs parameter' {
