@@ -169,9 +169,13 @@ int main(int argc, char **argv)
         printf("Git version: %s\n", VER);
         return 0;
     }
-    if (args->contains(QLatin1String("help")) || args->arguments().count() != 1) {
+    if (args->contains(QLatin1String("help"))) {
         args->usage(QString(), "[Path to subversion repo]");
         return 0;
+    }
+    if (args->arguments().count() != 1) {
+        args->usage(QString(), "[Path to subversion repo]");
+        return 12;
     }
     if (args->undefinedOptions().count()) {
         QTextStream out(stderr);
