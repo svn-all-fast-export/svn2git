@@ -1099,7 +1099,7 @@ int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
     }
 
     // Add gitignore-File
-    QString gitIgnorePath = path + ".gitignore";
+    QString gitIgnorePath = path == "/" ? ".gitignore" : path + ".gitignore";
     if (content) {
         QIODevice *io = txn->addFile(gitIgnorePath, 33188, strlen(content));
         if (!CommandLineParser::instance()->contains("dry-run")) {
@@ -1107,6 +1107,12 @@ int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
             io->putChar('\n');
         }
     } else {
+        // no empty placeholder .gitignore for repository root
+        // this should be handled previously already, just a
+        // security measure here.
+        if (path == "/") {
+            return EXIT_FAILURE;
+        }
         QIODevice *io = txn->addFile(gitIgnorePath, 33188, 0);
         if (!CommandLineParser::instance()->contains("dry-run")) {
             io->putChar('\n');
@@ -1144,6 +1150,11 @@ int SvnRevision::checkParentNotEmpty(apr_pool_t *pool, const char *key, QString 
         cleanPath = cleanPath.mid(0, cleanPath.length()-1);
     index = cleanPath.lastIndexOf(slash);
     QString parentPath = cleanPath.left(index);
+
+    // we are in the root directory, do not add a .gitignore here
+    if (index == -1) {
+        return EXIT_FAILURE;
+    }
 
     // if svn-ignore should have added a .gitignore file, do not overwrite it with an empty one
     // if svn:ignore could not be determined, stay safe and do not overwrite the .gitignore file
