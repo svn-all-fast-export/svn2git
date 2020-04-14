@@ -319,68 +319,6 @@ static bool wasDir(svn_fs_t *fs, int revnum, const char *pathname, apr_pool_t *p
     return is_dir;
 }
 
-static int recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, svn_fs_root_t *fs_root,
-                            const QByteArray &pathname, const QString &finalPathName,
-                            apr_pool_t *pool, svn_revnum_t revnum,
-                            const Rules::Match &rule, const MatchRuleList &matchRules,
-                            bool ruledebug)
-{
-    if (!wasDir(fs, revnum, pathname.data(), pool)) {
-        if (dumpBlob(txn, fs_root, pathname, finalPathName, pool) == EXIT_FAILURE)
-            return EXIT_FAILURE;
-        return EXIT_SUCCESS;
-    }
-
-    // get the dir listing
-    apr_hash_t *entries;
-    SVN_ERR(svn_fs_dir_entries(&entries, fs_root, pathname, pool));
-    AprAutoPool dirpool(pool);
-
-    // While we get a hash, put it in a map for sorted lookup, so we can
-    // repeat the conversions and get the same git commit hashes.
-    QMap<QByteArray, svn_node_kind_t> map;
-    for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
-        const void *vkey;
-        void *value;
-        apr_hash_this(i, &vkey, NULL, &value);
-        svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-        map.insertMulti(QByteArray(dirent->name), dirent->kind);
-    }
-
-    QMapIterator<QByteArray, svn_node_kind_t> i(map);
-    while (i.hasNext()) {
-        dirpool.clear();
-        i.next();
-        QByteArray entryName = pathname + '/' + i.key();
-        QString entryFinalName = finalPathName + QString::fromUtf8(i.key());
-
-        if (i.value() == svn_node_dir) {
-            entryFinalName += '/';
-            QString entryNameQString = entryName + '/';
-
-            MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, entryNameQString);
-            if (match == matchRules.constEnd()) continue; // no match of parent repo? (should not happen)
-
-            const Rules::Match &matchedRule = *match;
-            if (matchedRule.action != Rules::Match::Export || matchedRule.repository != rule.repository) {
-                if (ruledebug)
-                    qDebug() << "recursiveDumpDir:" << entryNameQString << "skip entry for different/ignored repository";
-                continue;
-            }
-
-            if (recursiveDumpDir(txn, fs, fs_root, entryName, entryFinalName, dirpool, revnum, rule, matchRules, ruledebug) == EXIT_FAILURE)
-                return EXIT_FAILURE;
-        } else if (i.value() == svn_node_file) {
-            printf("+");
-            fflush(stdout);
-            if (dumpBlob(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
-                return EXIT_FAILURE;
-        }
-    }
-
-    return EXIT_SUCCESS;
-}
-
 time_t get_epoch(const char* svn_date)
 {
     struct tm tm;
@@ -450,6 +388,11 @@ public:
 private:
     void splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
                        QString *repository_p, QString *effectiveRepository_p, QString *branch_p, QString *path_p);
+    int recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, svn_fs_root_t *fs_root,
+                         const QByteArray &pathname, const QString &finalPathName,
+                         apr_pool_t *pool, svn_revnum_t revnum,
+                         const Rules::Match &rule, const MatchRuleList &matchRules,
+                         bool ruledebug, int ignoreSet);
 };
 
 int SvnPrivate::exportRevision(int revnum)
@@ -876,7 +819,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                     qDebug() << "Create a true SVN copy of branch (" << key << "->" << branch << path << ")";
                 txn->deleteFile(path);
                 checkParentNotEmpty(pool, key, path, fs_root, txn);
-                recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
+                recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug, false);
             }
             if (rule.annotate) {
                 // create an annotated tag
@@ -959,7 +902,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             }
         }
 
-        recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug);
+        recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug, ignoreSet);
     }
 
     if (rule.annotate) {
@@ -967,6 +910,77 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         fetchRevProps();
         repo->createAnnotatedTag(branch, svnprefix, revnum, authorident,
                                  epoch, log);
+    }
+
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, svn_fs_root_t *fs_root,
+                                  const QByteArray &pathname, const QString &finalPathName,
+                                  apr_pool_t *pool, svn_revnum_t revnum,
+                                  const Rules::Match &rule, const MatchRuleList &matchRules,
+                                  bool ruledebug, int ignoreSet)
+{
+    if (!wasDir(fs, revnum, pathname.data(), pool)) {
+        if (dumpBlob(txn, fs_root, pathname, finalPathName, pool) == EXIT_FAILURE)
+            return EXIT_FAILURE;
+        return EXIT_SUCCESS;
+    }
+
+    if ((ignoreSet == false) && CommandLineParser::instance()->contains("svn-ignore")) {
+        QString svnignore;
+        if (fetchIgnoreProps(&svnignore, pool, pathname, fs_root) != EXIT_SUCCESS) {
+            qWarning() << "Error fetching svn-properties (" << pathname << ")";
+        } else if (!svnignore.isNull()) {
+            addGitIgnore(pool, pathname, finalPathName, fs_root, txn, svnignore.toStdString().c_str());
+        }
+    }
+
+    // get the dir listing
+    apr_hash_t *entries;
+    SVN_ERR(svn_fs_dir_entries(&entries, fs_root, pathname, pool));
+    AprAutoPool dirpool(pool);
+
+    // While we get a hash, put it in a map for sorted lookup, so we can
+    // repeat the conversions and get the same git commit hashes.
+    QMap<QByteArray, svn_node_kind_t> map;
+    for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
+        const void *vkey;
+        void *value;
+        apr_hash_this(i, &vkey, NULL, &value);
+        svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+        map.insertMulti(QByteArray(dirent->name), dirent->kind);
+    }
+
+    QMapIterator<QByteArray, svn_node_kind_t> i(map);
+    while (i.hasNext()) {
+        dirpool.clear();
+        i.next();
+        QByteArray entryName = pathname + '/' + i.key();
+        QString entryFinalName = finalPathName + QString::fromUtf8(i.key());
+
+        if (i.value() == svn_node_dir) {
+            entryFinalName += '/';
+            QString entryNameQString = entryName + '/';
+
+            MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, entryNameQString);
+            if (match == matchRules.constEnd()) continue; // no match of parent repo? (should not happen)
+
+            const Rules::Match &matchedRule = *match;
+            if (matchedRule.action != Rules::Match::Export || matchedRule.repository != rule.repository) {
+                if (ruledebug)
+                    qDebug() << "recursiveDumpDir:" << entryNameQString << "skip entry for different/ignored repository";
+                continue;
+            }
+
+            if (recursiveDumpDir(txn, fs, fs_root, entryName, entryFinalName, dirpool, revnum, rule, matchRules, ruledebug, false) == EXIT_FAILURE)
+                return EXIT_FAILURE;
+        } else if (i.value() == svn_node_file) {
+            printf("+");
+            fflush(stdout);
+            if (dumpBlob(txn, fs_root, entryName, entryFinalName, dirpool) == EXIT_FAILURE)
+                return EXIT_FAILURE;
+        }
     }
 
     return EXIT_SUCCESS;
