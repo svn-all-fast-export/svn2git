@@ -730,6 +730,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
     QString previous;
     QString prevsvnprefix, prevrepository, preveffectiverepository, prevbranch, prevpath;
 
+    bool needRecursiveDump = false;
     if (path_from != NULL) {
         previous = QString::fromUtf8(path_from);
         if (wasDir(fs, rev_from, path_from, pool.data())) {
@@ -744,6 +745,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         } else {
             qWarning() << "WARN: SVN reports a \"copy from\" @" << revnum << "from" << path_from << "@" << rev_from << "but no matching rules found! Ignoring copy, treating as a modification";
             path_from = NULL;
+            needRecursiveDump = true;
         }
     }
 
@@ -878,8 +880,23 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             }
         }
 
-        txn->deleteFile(path);
-        checkParentNotEmpty(pool, key, path, fs_root, txn);
+        // if adding, modifying or replacing directory from empty path,
+        // we only came here to handle empty-dirs and svn-ignore
+        // do not redump the directory recursively, as all added files are
+        // included as separate file changes anyway, otherwise the whole
+        // directory tree is dumped multiple times
+        //
+        // needRecursiveDump is true if we come here because it actually was
+        // a copy, but the source is not available in the target repo, so
+        // we make a full dump instead here.
+        bool dumpDirectory = needRecursiveDump
+            || !((change->change_kind == svn_fs_path_change_add || change->change_kind == svn_fs_path_change_modify || change->change_kind == svn_fs_path_change_replace)
+                 && (path_from == NULL));
+
+        if (dumpDirectory) {
+            txn->deleteFile(path);
+            checkParentNotEmpty(pool, key, path, fs_root, txn);
+        }
 
         // Add GitIgnore with svn:ignore
         int ignoreSet = false;
@@ -902,7 +919,9 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             }
         }
 
-        recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug, ignoreSet);
+        if (dumpDirectory) {
+            recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug, ignoreSet);
+        }
     }
 
     if (rule.annotate) {

@@ -171,3 +171,45 @@ load 'common'
 
     assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" 'ignore-a'
 }
+
+@test 'empty-dirs parameter should not cause added directories to be dumped multiple times' {
+    svn mkdir dir-a
+    echo content-a >dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --create-dump --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert [ "$(grep -c '^M .* dir-a/file-a$' git-repo.fi)" -eq 1 ]
+}
+
+@test 'empty-dirs parameter should not cause added directories to be dumped multiple times (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    echo content-a >dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --create-dump --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert [ "$(grep -c '^M .* dir-a/file-a$' git-repo.fi)" -eq 1 ]
+}
