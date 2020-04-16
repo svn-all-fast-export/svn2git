@@ -386,6 +386,7 @@ public:
     int fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char *key, svn_fs_root_t *fs_root);
     int fetchUnknownProps(apr_pool_t *pool, const char *key, svn_fs_root_t *fs_root);
 private:
+    int checkParentNoLongerEmpty(apr_pool_t *pool, const char *key, QString path, Repository::Transaction *txn);
     void splitPathName(const Rules::Match &rule, const QString &pathName, QString *svnprefix_p,
                        QString *repository_p, QString *effectiveRepository_p, QString *branch_p, QString *path_p);
     int recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, svn_fs_root_t *fs_root,
@@ -868,6 +869,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
         if(ruledebug)
             qDebug() << "add/change file (" << key << "->" << branch << path << ")";
         dumpBlob(txn, fs_root, key, path, pool);
+        checkParentNoLongerEmpty(pool, key, path, txn);
     } else {
         if(ruledebug)
             qDebug() << "add/change dir (" << key << "->" << branch << path << ")";
@@ -897,6 +899,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             txn->deleteFile(path);
             checkParentNotEmpty(pool, key, path, fs_root, txn);
         }
+        checkParentNoLongerEmpty(pool, key, path, txn);
 
         // Add GitIgnore with svn:ignore
         int ignoreSet = false;
@@ -1165,6 +1168,67 @@ int SvnRevision::checkParentNotEmpty(apr_pool_t *pool, const char *key, QString 
       io->putChar('\n');
     }
 
+    return EXIT_SUCCESS;
+}
+
+int SvnRevision::checkParentNoLongerEmpty(apr_pool_t *pool, const char *key, QString path, Repository::Transaction *txn) {
+    if (!CommandLineParser::instance()->contains("empty-dirs")) {
+      return EXIT_FAILURE;
+    }
+    QString slash = "/";
+    QString qkey = QString::fromUtf8(key);
+    while (qkey.endsWith('/'))
+        qkey = qkey.mid(0, qkey.length()-1);
+    int index = qkey.lastIndexOf(slash);
+    if (index == -1) {
+        return EXIT_FAILURE;
+    }
+    QString parentKey = qkey.left(index);
+
+    AprAutoPool subpool(pool);
+    svn_fs_root_t *previous_fs_root;
+    if (svn_fs_revision_root(&previous_fs_root, fs, revnum - 1, subpool) != SVN_NO_ERROR) {
+        return EXIT_FAILURE;
+    }
+
+    apr_hash_t *entries;
+    // directory did not exist
+    if (svn_fs_dir_entries(&entries, previous_fs_root, parentKey.toStdString().c_str(), pool) != SVN_NO_ERROR) {
+        return EXIT_FAILURE;
+    }
+
+    // directory was not empty
+    if (apr_hash_count(entries)!=0) {
+        return EXIT_FAILURE;
+    }
+
+    QString cleanPath = path;
+    while (cleanPath.endsWith('/'))
+        cleanPath = cleanPath.mid(0, cleanPath.length()-1);
+    index = cleanPath.lastIndexOf(slash);
+    QString parentPath = cleanPath.left(index);
+
+    // we are in the root directory, we did not add a .gitignore here
+    if (index == -1) {
+        return EXIT_FAILURE;
+    }
+
+    // if svn-ignore should have added a .gitignore file, do not consider the directory empty
+    // if svn:ignore could not be determined, stay safe and do not consider the directory empty
+    // even if then an empty .gitignore might be left over
+    QString svnignore;
+    if (CommandLineParser::instance()->contains("svn-ignore")) {
+        if (fetchIgnoreProps(&svnignore, pool, parentKey.toStdString().c_str(), previous_fs_root) != EXIT_SUCCESS) {
+            qWarning() << "Error fetching svn-properties (" << parentKey << ")";
+            return EXIT_FAILURE;
+        } else if (!svnignore.isNull()) {
+            return EXIT_FAILURE;
+        }
+    }
+
+    // Delete gitignore-File
+    QString gitIgnorePath = parentPath + "/.gitignore";
+    txn->deleteFile(gitIgnorePath);
     return EXIT_SUCCESS;
 }
 
