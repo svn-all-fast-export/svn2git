@@ -1131,6 +1131,7 @@ int SvnRevision::checkParentNotEmpty(apr_pool_t *pool, const char *key, QString 
 
     apr_hash_t *entries;
     SVN_ERR(svn_fs_dir_entries(&entries, fs_root, parentKey.toStdString().c_str(), pool));
+    // directory is not empty
     if (apr_hash_count(entries)!=0) {
         return EXIT_FAILURE;
     }
@@ -1140,6 +1141,19 @@ int SvnRevision::checkParentNotEmpty(apr_pool_t *pool, const char *key, QString 
         cleanPath = cleanPath.mid(0, cleanPath.length()-1);
     index = cleanPath.lastIndexOf(slash);
     QString parentPath = cleanPath.left(index);
+
+    // if svn-ignore should have added a .gitignore file, do not overwrite it with an empty one
+    // if svn:ignore could not be determined, stay safe and do not overwrite the .gitignore file
+    // even if then an empty directory might be missing
+    QString svnignore;
+    if (CommandLineParser::instance()->contains("svn-ignore")) {
+        if (fetchIgnoreProps(&svnignore, pool, parentKey.toStdString().c_str(), fs_root) != EXIT_SUCCESS) {
+            qWarning() << "Error fetching svn-properties (" << parentKey << ")";
+            return EXIT_FAILURE;
+        } else if (!svnignore.isNull()) {
+            return EXIT_FAILURE;
+        }
+    }
 
     // Add gitignore-File
     QString gitIgnorePath = parentPath + "/.gitignore";
