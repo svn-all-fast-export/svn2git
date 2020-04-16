@@ -214,6 +214,190 @@ load 'common'
     assert [ "$(grep -c '^M .* dir-a/file-a$' git-repo.fi)" -eq 1 ]
 }
 
+@test 'adding first file to an empty directory should remove empty .gitignore with empty-dirs-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first file to an empty directory should remove empty .gitignore with empty-dirs-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first file to an empty directory should remove empty .gitignore with empty-dirs- and svn-ignore-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first file to an empty directory should remove empty .gitignore with empty-dirs- and svn-ignore-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first file to an empty directory with ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'adding first file to an empty directory with ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'adding first file to an empty directory and at the same time adding ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn propset svn:ignore 'ignore-a' dir-a
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a and ignores'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'adding first file to an empty directory and at the same time adding ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn propset svn:ignore 'ignore-a' dir-a
+    touch dir-a/file-a
+    svn add dir-a/file-a
+    svn commit -m 'add dir-a/file-a and ignores'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
 @test 'deleting last file from a directory should add empty .gitignore with empty-dirs-parameter' {
     svn mkdir dir-a
     touch dir-a/file-a
@@ -408,6 +592,182 @@ load 'common'
     refute git -C git-repo show master:.gitignore
     assert git -C git-repo show master:dir-a/.gitignore
     assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" ''
+}
+
+@test 'adding first directory to an empty directory should remove empty .gitignore with empty-dirs-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn commit -m 'add dir-a/subdir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first directory to an empty directory should remove empty .gitignore with empty-dirs-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn commit -m 'add dir-a/subdir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first directory to an empty directory should remove empty .gitignore with empty-dirs-parameter and svn-ignore-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn commit -m 'add dir-a/subdir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first directory to an empty directory should remove empty .gitignore with empty-dirs-parameter and svn-ignore-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn commit -m 'add dir-a/subdir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'adding first directory to an empty directory with ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn commit -m 'add dir-a/subdir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'adding first directory to an empty directory with ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn commit -m 'add dir-a/subdir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'adding first directory to an empty directory and at the same time adding ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter' {
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a/subdir-a and ignores'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'adding first directory to an empty directory and at the same time adding ignores should not remove .gitignore with empty-dirs-parameter and svn-ignore-parameter (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn commit -m 'add dir-a'
+    svn mkdir dir-a/subdir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a/subdir-a and ignores'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
 }
 
 @test 'deleting last directory from a directory should not add empty .gitignore with empty-dirs-parameter and svn-ignore-parameter if there is an svn:ignore property' {
