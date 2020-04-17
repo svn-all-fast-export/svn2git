@@ -823,6 +823,9 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
                 txn->deleteFile(path);
                 checkParentNotEmpty(pool, key, path, fs_root, txn);
                 recursiveDumpDir(txn, fs, fs_root, key, path, pool, revnum, rule, matchRules, ruledebug, false);
+                if (CommandLineParser::instance()->contains("empty-dirs")) {
+                    addGitIgnoreOnBranch(pool, key, path, fs_root, txn);
+                }
             }
             if (rule.annotate) {
                 // create an annotated tag
