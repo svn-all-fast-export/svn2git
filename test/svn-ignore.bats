@@ -221,3 +221,363 @@ load 'common'
     assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
     assert git -C git-repo show master:dir-a/file-a
 }
+
+@test 'gitignore file should be removed if all svn-ignores are removed' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propset svn:ignore '' dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if all svn-ignores are removed (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propset svn:ignore '' dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if svn-ignore property is deleted' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:ignore dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if svn-ignore property is deleted (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:ignore dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if all svn-global-ignores are removed' {
+    svn mkdir dir-a
+    svn propset svn:global-ignores 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propset svn:global-ignores '' dir-a
+    svn commit -m 'unignore ignore-a on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if all svn-global-ignores are removed (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:global-ignores 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propset svn:global-ignores '' dir-a
+    svn commit -m 'unignore ignore-a on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if global-ignores property is deleted' {
+    svn mkdir dir-a
+    svn propset svn:global-ignores 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:global-ignores dir-a
+    svn commit -m 'unignore ignore-a on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should be removed if global-ignores property is deleted (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:global-ignores 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:global-ignores dir-a
+    svn commit -m 'unignore ignore-a on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    refute git -C git-repo show master:dir-a/.gitignore
+}
+
+@test 'gitignore file should not be removed if global-ignores property is deleted but svn-ignore property is still present' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn propset svn:global-ignores 'ignore-b' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:global-ignores dir-a
+    svn commit -m 'unignore ignore-b on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'gitignore file should not be removed if global-ignores property is deleted but svn-ignore property is still present (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn propset svn:global-ignores 'ignore-b' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:global-ignores dir-a
+    svn commit -m 'unignore ignore-b on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'gitignore file should not be removed if svn-ignore property is deleted but global-ignores property is still present' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn propset svn:global-ignores 'ignore-b' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:ignore dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" 'ignore-b'
+}
+
+@test 'gitignore file should not be removed if svn-ignore property is deleted but global-ignores property is still present (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn propset svn:global-ignores 'ignore-b' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:ignore dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" 'ignore-b'
+}
+
+@test 'gitignore file should remain empty if svn-ignore property is deleted but empty-dirs is used' {
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:ignore dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" ''
+}
+
+@test 'gitignore file should remain empty if svn-ignore property is deleted but empty-dirs is used (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:ignore 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:ignore dir-a
+    svn commit -m 'unignore ignore-a on dir-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" ''
+}
+
+@test 'gitignore file should remain empty if global-ignores property is deleted but empty-dirs is used' {
+    svn mkdir dir-a
+    svn propset svn:global-ignores 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:global-ignores dir-a
+    svn commit -m 'unignore ignore-a on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" ''
+}
+
+@test 'gitignore file should remain empty if global-ignores property is deleted but empty-dirs is used (nested)' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir dir-a
+    svn propset svn:global-ignores 'ignore-a' dir-a
+    svn commit -m 'add dir-a'
+    svn propdel svn:global-ignores dir-a
+    svn commit -m 'unignore ignore-a on dir-a and descendents'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --svn-ignore --empty-dirs --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/
+            repository git-repo
+            branch master
+        end match
+    ")
+
+    assert git -C git-repo show master:dir-a/.gitignore
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" ''
+}

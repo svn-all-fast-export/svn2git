@@ -906,7 +906,10 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             // TODO: Check if svn:ignore or other property was changed, but always set on copy/rename (path_from != NULL)
             if (fetchIgnoreProps(&svnignore, pool, key, fs_root) != EXIT_SUCCESS) {
                 qWarning() << "Error fetching svn-properties (" << key << ")";
-            } else if (!svnignore.isNull()) {
+            } else if (svnignore.isNull()) {
+                QString gitIgnorePath = path == "/" ? ".gitignore" : path + ".gitignore";
+                txn->deleteFile(gitIgnorePath);
+            } else {
                 addGitIgnore(pool, key, path, fs_root, txn, svnignore.toStdString().c_str());
                 ignoreSet = true;
             }
@@ -1197,6 +1200,9 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         ignore->remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
         // add a slash in front to have the same meaning in Git of only working on the direct children
         ignore->replace(QRegExp("(^|[\\r\\n])\\s*(?![\\r\\n]|$)"), "\\1/");
+        if (ignore->trimmed().isEmpty()) {
+            *ignore = QString();
+        }
     } else {
         *ignore = QString();
     }
@@ -1209,7 +1215,9 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         // remove patterns with slashes or backslashes,
         // they didn't match anything in Subversion but would in Git eventually
         global_ignore.remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
-        ignore->append(global_ignore);
+        if (!global_ignore.trimmed().isEmpty()) {
+            ignore->append(global_ignore);
+        }
     }
 
     // replace multiple asterisks Subversion meaning by Git meaning
