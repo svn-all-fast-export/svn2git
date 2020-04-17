@@ -1102,6 +1102,19 @@ int SvnRevision::addGitIgnore(apr_pool_t *pool, const char *key, QString path,
         if (apr_hash_count(entries)!=0) {
             return EXIT_FAILURE;
         }
+
+        // if svn-ignore should have added a .gitignore file, do not overwrite it with an empty one
+        // if svn:ignore could not be determined, stay safe and do not overwrite the .gitignore file
+        // even if then an empty directory might be missing
+        QString svnignore;
+        if (CommandLineParser::instance()->contains("svn-ignore")) {
+            if (fetchIgnoreProps(&svnignore, pool, key, fs_root) != EXIT_SUCCESS) {
+                qWarning() << "Error fetching svn-properties (" << key << ")";
+                return EXIT_FAILURE;
+            } else if (!svnignore.isNull()) {
+                return EXIT_FAILURE;
+            }
+        }
     }
 
     // Add gitignore-File

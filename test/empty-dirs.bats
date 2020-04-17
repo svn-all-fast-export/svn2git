@@ -979,3 +979,69 @@ load 'common'
     assert git -C git-repo show branch-a:dir-a/.gitignore
     assert_equal "$(git -C git-repo show branch-a:dir-a/.gitignore)" ''
 }
+
+@test 'branching with svn-ignore, svn-branches and empty-dirs parameter should not replace filled .gitignore files with empty ones' {
+    svn mkdir --parents trunk/dir-a
+    svn propset svn:ignore 'ignore-a' trunk/dir-a
+    svn commit -m 'add trunk/dir-a'
+    svn mkdir branches
+    svn cp trunk branches/branch-a
+    svn commit -m 'create branch-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-branches --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /trunk/
+            repository git-repo
+            branch master
+        end match
+
+        match /branches/$
+            action recurse
+        end match
+
+        match /branches/([^/]+)/
+            repository git-repo
+            branch \1
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+    assert_equal "$(git -C git-repo show branch-a:dir-a/.gitignore)" '/ignore-a'
+}
+
+@test 'branching with svn-ignore, svn-branches and empty-dirs parameter should not replace filled .gitignore files with empty ones' {
+    svn mkdir project-a
+    cd project-a
+    svn mkdir --parents trunk/dir-a
+    svn propset svn:ignore 'ignore-a' trunk/dir-a
+    svn commit -m 'add trunk/dir-a'
+    svn mkdir branches
+    svn cp trunk branches/branch-a
+    svn commit -m 'create branch-a'
+
+    cd "$TEST_TEMP_DIR"
+    svn2git "$SVN_REPO" --empty-dirs --svn-branches --svn-ignore --rules <(echo "
+        create repository git-repo
+        end repository
+
+        match /project-a/trunk/
+            repository git-repo
+            branch master
+        end match
+
+        match /project-a/branches/([^/]+)/
+            repository git-repo
+            branch \1
+        end match
+
+        match /project-a/(branches/)?$
+            action recurse
+        end match
+    ")
+
+    assert_equal "$(git -C git-repo show master:dir-a/.gitignore)" '/ignore-a'
+    assert_equal "$(git -C git-repo show branch-a:dir-a/.gitignore)" '/ignore-a'
+}
