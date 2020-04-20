@@ -38,4 +38,28 @@ else
 fi
 
 mkdir -p "$SCRIPT_DIR/build/tmp"
-TMPDIR="$SCRIPT_DIR/build/tmp" test/libs/bats-core/bin/bats "$@"
+{
+    TMPDIR="$SCRIPT_DIR/build/tmp" \
+        test/libs/bats-core/bin/bats "$@" \
+        4>&1 1>&2 2>&4 |
+        awk '
+            BEGIN {
+                duplicate_test_names = ""
+            }
+
+            {
+                print
+            }
+
+            /duplicate test name/ {
+                duplicate_test_names = duplicate_test_names "\n\t" $0
+            }
+
+            END {
+                if (length(duplicate_test_names)) {
+                    print "\nERROR: duplicate test name(s) found:" duplicate_test_names
+                    exit 1
+                }
+            }
+        '
+} 4>&1 1>&2 2>&4

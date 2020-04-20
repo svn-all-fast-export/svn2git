@@ -1060,7 +1060,7 @@ load 'common'
     assert_equal "$(git -C git-repo show branch-a:dir-a/.gitignore)" '/ignore-a'
 }
 
-@test 'branching with svn-ignore, svn-branches and empty-dirs parameter should not replace filled .gitignore files with empty ones' {
+@test 'branching with svn-ignore, svn-branches and empty-dirs parameter should not replace filled .gitignore files with empty ones (nested)' {
     svn mkdir project-a
     cd project-a
     svn mkdir --parents trunk/dir-a
