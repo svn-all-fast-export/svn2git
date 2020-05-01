@@ -93,9 +93,9 @@ Creates a rule that matches paths by `REGEX` and applies some `PARAMETERS` to th
 
   - `export` I have no idea what this does
   - `ignore` ignores this path
-  - `recurse` tells svn2git to ignore this path and continue searching it's children.
+  - `recurse` tells svn2git to ignore this path and continue searching its children.
 
-- `annotate true` creates annotated tags instead of lightweight tags
+- `annotated true` creates annotated tags instead of lightweight tags. You can see the commit log with `git tag -n`.
 
 ### `include FILENAME`
 
@@ -113,4 +113,4 @@ Please feel free to fill this section in.
 Some SVN tricks
 ---------------
 You can access your newly rsynced SVN repo with commands like `svn ls file:///path/to/repo/trunk/KDE`.
-A common issue is tracking when an item left playground for kdereview and then went from kdereview to its final destination. There is no straightforward way to do this. So the following command comes in handy: `svn log -v file:///path/to/repo/kde-svn/kde/trunk/kdereview | grep /trunk/kdereview/mplayerthumbs -A 5 -B 5` This will print all commits relevant to the package you are trying to track. You can also pipe the above command to head or tail to see the the first and last commit it was in that directory.
+A common issue is tracking when an item left playground for kdereview and then went from kdereview to its final destination. There is no straightforward way to do this. So the following command comes in handy: `svn log -v file:///path/to/repo/kde-svn/kde/trunk/kdereview | grep /trunk/kdereview/mplayerthumbs -A 5 -B 5` This will print all commits relevant to the package you are trying to track. You can also pipe the above command to head or tail to see the first and last commit it was in that directory.
