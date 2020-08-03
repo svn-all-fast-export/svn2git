@@ -31,18 +31,7 @@ class LoggingQProcess : public QProcess
     QFile log;
     bool logging;
 public:
-    LoggingQProcess(const QString filename) : QProcess(), log() {
-        if(CommandLineParser::instance()->contains("debug-rules")) {
-            logging = true;
-            QString name = filename;
-            name.replace('/', '_');
-            name.prepend("gitlog-");
-            log.setFileName(name);
-            log.open(QIODevice::WriteOnly);
-        } else {
-            logging = false;
-        }
-    };
+    LoggingQProcess(const QString filename);
     ~LoggingQProcess() {
         if(logging) {
             log.close();

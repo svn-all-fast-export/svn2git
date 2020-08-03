@@ -30,6 +30,27 @@ static const int maxSimultaneousProcesses = 100;
 typedef unsigned long long mark_t;
 static const mark_t maxMark = ULONG_MAX;
 
+LoggingQProcess::LoggingQProcess(const QString filename)
+    : QProcess(), log()
+{
+    if(CommandLineParser::instance()->contains("debug-rules")) {
+        logging = true;
+        QString name = filename;
+        name.replace('/', '_');
+        name.prepend("gitlog-");
+        log.setFileName(name);
+        log.open(QIODevice::WriteOnly);
+    } else {
+        logging = false;
+    }
+
+    // Trigger a crictical error if any error in the process happens
+    connect(this, &QProcess::errorOccurred, this,
+        [this](QProcess::ProcessError error) {
+            qCritical() << "Error happened in fast import process, error code: '" << error <<"'";
+        });
+};
+
 class FastImportRepository : public Repository
 {
 public:
