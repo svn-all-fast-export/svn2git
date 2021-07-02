@@ -326,8 +326,18 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
         branches.insert(branchRule.name, branch);
     }
 
-    // create the default branch
-    branches["master"].created = 1;
+    // create the defaultBranch from the config
+    QProcess config;
+    config.start("git", QStringList() << "config" << "init.defaultBranch");
+    config.waitForFinished(-1);
+    QString defaultBranch = QString(config.readAllStandardOutput()).trimmed();
+
+    // Create the default branch
+    if (defaultBranch.isEmpty()) {
+        branches["master"].created = 1;
+    } else {
+        branches[defaultBranch].created = 1;
+    }
 
     if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
         fastImport.setWorkingDirectory(name);
