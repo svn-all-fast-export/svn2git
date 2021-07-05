@@ -134,6 +134,7 @@ private:
         QVector<int> marks;
     };
 
+    QString defaultBranch;
     QHash<QString, Branch> branches;
     QHash<QString, QByteArray> branchNotes;
     QHash<QString, AnnotatedTag> annotatedTags;
@@ -351,14 +352,14 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
     QProcess config;
     config.start("git", QStringList() << "config" << "init.defaultBranch");
     config.waitForFinished(-1);
-    QString defaultBranch = QString(config.readAllStandardOutput()).trimmed();
+    defaultBranch = QString(config.readAllStandardOutput()).trimmed();
 
     // Create the default branch
     if (defaultBranch.isEmpty()) {
-        branches["master"].created = 1;
-    } else {
-        branches[defaultBranch].created = 1;
+        defaultBranch = "master";
     }
+
+    branches[defaultBranch].created = 1;
 
     if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
         fastImport.setWorkingDirectory(name);
@@ -756,7 +757,7 @@ void FastImportRepository::commit()
 Repository::Transaction *FastImportRepository::newTransaction(const QString &branch, const QString &svnprefix,
                                                               int revnum)
 {
-    if (!branches.contains(branch)) {
+    if (!branchExists(branch)) {
         qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << endl
                    << "Going to create it automatically";
     }
@@ -1153,8 +1154,9 @@ int FastImportRepository::Transaction::commit()
     if (br.created && !br.marks.isEmpty() && br.marks.last()) {
         parentmark = br.marks.last();
     } else {
-        if (revnum > 1) {
-            // Any branch at revision 1 isn't going to exist, so lets not alarm the user.
+        if (revnum > 1 && branch != repository->defaultBranch) {
+            // Any branch at revision 1 isn't going to exist -> do not alarm the user.
+            // Default branch might also not exist yet -> do not alarm the user.
             qWarning() << "WARN: Branch" << branch << "in repository" << repository->name << "doesn't exist at revision"
                        << revnum << "-- did you resume from the wrong revision?";
         }
