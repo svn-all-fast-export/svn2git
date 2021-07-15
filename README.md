@@ -22,7 +22,7 @@ Just mount your SVN folder, plus another working directory where Git repository 
 Sample usage with input mounted in /tmp and output produced in /workdir:
 ```
 docker build -t svn2git .
-docker run --rm -it -v `pwd`/workdir:/workdir -v /var/lib/svn/project1:/tmp/svn -v `pwd`/conf:/tmp/conf svn2git /usr/local/svn2git/svn-all-fast-export --identity-map /tmp/conf/project1.authors --rules /tmp/conf/project1.rules --add-metadata --svn-branches --debug-rules --svn-ignore --empty-dirs /tmp/svn/ 
+docker run --rm -it -v `pwd`/workdir:/workdir -v /var/lib/svn/project1:/tmp/svn -v `pwd`/conf:/tmp/conf svn2git /usr/local/svn2git/svn-all-fast-export --identity-map /tmp/conf/project1.authors --rules /tmp/conf/project1.rules --add-metadata --svn-branches --debug-rules --svn-ignore --empty-dirs /tmp/svn/
 ```
 
 Building the tool
@@ -80,6 +80,10 @@ end match
 ```
 
 Creates a rule that matches paths by `REGEX` and applies some `PARAMETERS` to them. Matching groups can be created, and the values used in the parameters.
+You need to make sure the regex matching a SVN directory path matches also the end slash (e.g. `./`) otherwise Git fast-import will crash with an `fatal: Empty path component found in input` errors.
+For example, the rule `/project/trunk/.*/myFolder`, should become `/project/trunk/.*/myFolder/`.
+
+
 
 `PARAMETERS` is any number of:
 
