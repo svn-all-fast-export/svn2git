@@ -1,4 +1,4 @@
-FROM debian:8.11
+FROM debian:11
 
 RUN apt update && apt install -y \
     make g++ libapr1-dev libsvn-dev libqt4-dev \
