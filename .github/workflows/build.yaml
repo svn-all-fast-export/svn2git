@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-name: Build (Linux, Ubuntu 22.04)
+name: Build (Linux, Ubuntu)
 
 on:
 - pull_request
@@ -22,8 +22,17 @@ on:
 
 jobs:
   build:
-    name: Build (Linux, Ubuntu 22.04)
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-22.04
+            qt: qt5-qmake
+          - runs-on: ubuntu-18.04
+            qt: qt5-default
+
+    name: Build (Linux, ${{ matrix.runs-on }})
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - name: 'Install build dependencies'
         run: |-
@@ -33,7 +42,7 @@ jobs:
             build-essential \
             libapr1-dev \
             libsvn-dev \
-            qt5-qmake \
+            ${{ matrix.qt }} \
             qtbase5-dev
 
       - name: 'Checkout Git branch'
