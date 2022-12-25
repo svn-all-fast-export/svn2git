@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-name: Build (Linux, Ubuntu 18.04)
+name: Build (Linux, Ubuntu 22.04)
 
 on:
 - pull_request
@@ -22,8 +22,8 @@ on:
 
 jobs:
   build:
-    name: Build (Linux, Ubuntu 18.04)
-    runs-on: ubuntu-18.04
+    name: Build (Linux, Ubuntu 22.04)
+    runs-on: ubuntu-22.04
     steps:
       - name: 'Install build dependencies'
         run: |-
