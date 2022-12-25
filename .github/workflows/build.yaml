@@ -33,7 +33,7 @@ jobs:
             build-essential \
             libapr1-dev \
             libsvn-dev \
-            qt5-default \
+            qt5-qmake \
             qtbase5-dev
 
       - name: 'Checkout Git branch'
