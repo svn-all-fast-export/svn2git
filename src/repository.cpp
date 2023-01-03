@@ -1078,10 +1078,14 @@ bool FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
         message = "Appending Git note for current " + commitRef + "\n";
     }
 
-    struct tm lt = {0};
-    localtime_r((const time_t*)&datetime, &lt);
     QString timezone;
-    timezone.sprintf( "%+02d%02d", lt.tm_gmtoff / 3600, (lt.tm_gmtoff / 60) % 60 );
+    if(CommandLineParser::instance()->contains("use-localtime")) {
+        struct tm lt = {0};
+        localtime_r((const time_t*)&datetime, &lt);
+        timezone.sprintf( "%+02d%02d", lt.tm_gmtoff / 3600, (lt.tm_gmtoff / 60) % 60 );
+    } else {
+        timezone = "+0000";
+    }
 
     QByteArray s("");
     s.append("commit refs/notes/commits\n");
@@ -1154,10 +1158,14 @@ int FastImportRepository::Transaction::commit()
     if (!branchRef.startsWith("refs/"))
         branchRef.prepend("refs/heads/");
 
-    struct tm lt = {0};
-    localtime_r((const time_t*)&datetime, &lt);
     QString timezone;
-    timezone.sprintf( "%+02d%02d", lt.tm_gmtoff / 3600, (lt.tm_gmtoff / 60) % 60 );
+    if(CommandLineParser::instance()->contains("use-localtime")) {
+        struct tm lt = {0};
+        localtime_r((const time_t*)&datetime, &lt);
+        timezone.sprintf( "%+02d%02d", lt.tm_gmtoff / 3600, (lt.tm_gmtoff / 60) % 60 );
+    } else {
+        timezone = "+0000";
+    }
 
     QByteArray s("");
     s.append("commit " + branchRef + "\n");

@@ -150,6 +150,7 @@ static const CommandLineOption options[] = {
     {"--svn-ignore", "Import svn-ignore-properties via .gitignore"},
     {"--propcheck", "Check for svn-properties except svn-ignore"},
     {"--fast-import-timeout SECONDS", "number of seconds to wait before terminating fast-import, 0 to wait forever"},
+    {"--use-localtime", "use local time for commit"},
     {"-h, --help", "show help"},
     {"-v, --version", "show version"},
     CommandLineLastOption
