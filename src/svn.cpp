@@ -193,11 +193,14 @@ int SvnPrivate::openRepository(const QString &pathToRepository)
 
 enum RuleType { AnyRule = 0, NoIgnoreRule = 0x01, NoRecurseRule = 0x02 };
 
-static MatchRuleList::ConstIterator
-findMatchRule(const MatchRuleList &matchRules, int revnum, const QString &current,
-              int ruleMask = AnyRule)
-{
-    MatchRuleList::ConstIterator it = matchRules.constBegin(),
+static MatchRuleList::ConstIterator findMatchRule(
+      const MatchRuleList &matchRules,
+      int revnum,
+      const QString &current,
+      const MatchRuleList::ConstIterator from,
+      int ruleMask = AnyRule
+) {
+    MatchRuleList::ConstIterator it = from,
                                 end = matchRules.constEnd();
     for ( ; it != end; ++it) {
         if (it->minRevision > revnum)
@@ -630,13 +633,19 @@ int SvnRevision::exportEntry(const char *key, const svn_fs_path_change2_t *chang
     //Replace all returns with continue,
     bool isHandled = false;
     foreach ( const MatchRuleList matchRules, allMatchRules ) {
-        // find the first rule that matches this pathname
-        MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
-        if (match != matchRules.constEnd()) {
+        MatchRuleList::ConstIterator match = matchRules.constBegin();
+        while (true) {
+            // find each rule that matches this pathname
+            match = findMatchRule(matchRules, revnum, current, match);
+            if (match == matchRules.constEnd()) break;
             const Rules::Match &rule = *match;
             if ( exportDispatch(key, change, path_from, rev_from, changes, current, rule, matchRules, revpool) == EXIT_FAILURE )
                 return EXIT_FAILURE;
             isHandled = true;
+            ++match;
+        }
+        if (isHandled) {
+            // while loop found rules
         } else if (is_dir && path_from != NULL) {
             qDebug() << current << "is a copy-with-history, auto-recursing";
             if ( recurse(key, change, path_from, matchRules, rev_from, changes, revpool) == EXIT_FAILURE )
@@ -738,7 +747,7 @@ int SvnRevision::exportInternal(const char *key, const svn_fs_path_change2_t *ch
             previous += '/';
         }
         MatchRuleList::ConstIterator prevmatch =
-            findMatchRule(matchRules, rev_from, previous, NoIgnoreRule);
+            findMatchRule(matchRules, rev_from, previous, matchRules.constBegin(), NoIgnoreRule);
         if (prevmatch != matchRules.constEnd()) {
             splitPathName(*prevmatch, previous, &prevsvnprefix, &prevrepository,
                           &preveffectiverepository, &prevbranch, &prevpath);
@@ -995,7 +1004,7 @@ int SvnRevision::recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, sv
             entryFinalName += '/';
             QString entryNameQString = entryName + '/';
 
-            MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, entryNameQString);
+            MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, entryNameQString, matchRules.constBegin());
             if (match == matchRules.constEnd()) continue; // no match of parent repo? (should not happen)
 
             const Rules::Match &matchedRule = *match;
@@ -1076,12 +1085,18 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
             current += '/';
 
         // find the first rule that matches this pathname
-        MatchRuleList::ConstIterator match = findMatchRule(matchRules, revnum, current);
-        if (match != matchRules.constEnd()) {
+        bool matched = false;
+        MatchRuleList::ConstIterator match = matchRules.constBegin();
+        while (true) {
+            match = findMatchRule(matchRules, revnum, current, match);
+            if (match == matchRules.constEnd()) break;
+            matched = true;
             if (exportDispatch(entry, change, entryFrom.isNull() ? 0 : entryFrom.constData(),
                                rev_from, changes, current, *match, matchRules, dirpool) == EXIT_FAILURE)
                 return EXIT_FAILURE;
-        } else {
+            ++match;
+        }
+        if (!matched) {
             if (i.value() == svn_node_dir) {
                 qDebug() << current << "rev" << revnum
                          << "did not match any rules; auto-recursing";
