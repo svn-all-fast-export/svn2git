@@ -67,3 +67,16 @@ jobs:
           set -e
           make INSTALL_ROOT="${PWD}"/ROOT install
           find ROOT | sort
+
+  docker:
+    name: Check Dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout Git branch'
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: 'Build'
+        run: |-
+          docker build .
