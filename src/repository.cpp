@@ -551,7 +551,7 @@ FastImportRepository::~FastImportRepository()
 void FastImportRepository::closeFastImport()
 {
     if (fastImport.state() != QProcess::NotRunning) {
-        int fastImportTimeout = CommandLineParser::instance()->optionArgument(QLatin1String("fast-import-timeout"), QLatin1String("30")).toInt();
+        int fastImportTimeout = CommandLineParser::instance()->optionArgument(QLatin1String("fast-import-timeout"), QLatin1String("3600")).toInt();
         if(fastImportTimeout == 0) {
             qDebug() << "Waiting forever for fast-import to finish.";
             fastImportTimeout = -1;
