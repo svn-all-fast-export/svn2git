@@ -27,12 +27,37 @@ docker run --rm -it -v `pwd`/workdir:/workdir -v /var/lib/svn/project1:/tmp/svn 
 
 Building the tool
 -----------------
-Run `qmake && make`.  You get `./svn-all-fast-export`.
-(Do a checkout of the repo .git' and run qmake and make. You can only build it after having installed libsvn-dev, and naturally Qt. Running the command will give you all the options you can pass to the tool.)
+In general, clone this repo and run `qmake && make`.  You'll get `./svn-all-fast-export`.
 
 You will need to have some packages to compile it. For Ubuntu distros, use this command to install them all:
-`sudo apt-get install build-essential subversion git qtchooser qt5-default libapr1 libapr1-dev libsvn-dev`
+`sudo apt-get install build-essential pkg-config subversion git qtchooser qt5-default libapr1 libapr1-dev libsvn-dev`
 
+### Linux
+
+This example uses `apt-get`. Use the proper commands and packages for your distro.
+
+```
+$ sudo apt-get install build-essential pkg-config subversion git qtchooser qt5-default libapr1 libapr1-dev libsvn-dev liblz4-dev libutf8proc-dev
+$ git clone https://github.com/svn-all-fast-export/svn2git.git
+$ cd svn2git
+$ qmake && make
+$ ./svn-all-fast-export -h
+```
+
+### macOS + Homebrew
+
+Homebrew installs Qt5 and Apache Portable Runtime as `keg-only`. Therefore in order to build, you will need to tweak your environment as below. `brew install subversion` will also install its dependencies (`apr`, `pkg-confg`, etc.)
+
+```
+$ brew install git qt@5 subversion
+$ export PATH=$(brew --prefix)/opt/qt@5/bin:${PATH}
+$ export PKG_CONFIG_PATH=$(brew --prefix)/opt/apr/lib/pkgconfig
+$ qmake && make
+$ ./svn-all-fast-export -h
+```
+
+Tests
+-----
 To run all tests you can simply call the `test.sh` script in the root directory.
 This will run all [Bats](https://github.com/bats-core/bats-core) based tests
 found in `.bats` files in the directory `test`. Running the script will automatically
