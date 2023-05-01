@@ -24,6 +24,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLinkedList>
+#include <time.h>
 
 static const int maxSimultaneousProcesses = 100;
 
@@ -1077,10 +1078,19 @@ bool FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
         message = "Appending Git note for current " + commitRef + "\n";
     }
 
+    QString timezone;
+    if(CommandLineParser::instance()->contains("use-localtime")) {
+        struct tm lt = {0};
+        localtime_r((const time_t*)&datetime, &lt);
+        timezone.sprintf( "%+02d%02d", lt.tm_gmtoff / 3600, (lt.tm_gmtoff / 60) % 60 );
+    } else {
+        timezone = "+0000";
+    }
+
     QByteArray s("");
     s.append("commit refs/notes/commits\n");
     s.append("mark :" + QByteArray::number(maxMark) + "\n");
-    s.append("committer " + author + " " + QString::number(datetime) + " +0000" + "\n");
+    s.append("committer " + author + " " + QString::number(datetime) + " " + timezone + "\n");
     s.append("data " + QString::number(message.length()) + "\n");
     s.append(message + "\n");
     s.append("N inline " + commitRef + "\n");
@@ -1148,10 +1158,19 @@ int FastImportRepository::Transaction::commit()
     if (!branchRef.startsWith("refs/"))
         branchRef.prepend("refs/heads/");
 
+    QString timezone;
+    if(CommandLineParser::instance()->contains("use-localtime")) {
+        struct tm lt = {0};
+        localtime_r((const time_t*)&datetime, &lt);
+        timezone.sprintf( "%+02d%02d", lt.tm_gmtoff / 3600, (lt.tm_gmtoff / 60) % 60 );
+    } else {
+        timezone = "+0000";
+    }
+
     QByteArray s("");
     s.append("commit " + branchRef + "\n");
     s.append("mark :" + QByteArray::number(mark) + "\n");
-    s.append("committer " + author + " " + QString::number(datetime).toUtf8() + " +0000" + "\n");
+    s.append("committer " + author + " " + QString::number(datetime).toUtf8() + " " + timezone + "\n");
     s.append("data " + QString::number(message.length()) + "\n");
     s.append(message + "\n");
     repository->fastImport.write(s);
