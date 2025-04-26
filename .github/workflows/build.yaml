@@ -23,6 +23,10 @@ on:
     - cron: '0 2 * * 5'  # Every Friday at 2am
   workflow_dispatch:
 
+# Reduce permissions to minimum for security
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
