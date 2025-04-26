@@ -493,7 +493,11 @@ int SvnRevision::prepareTransactions()
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed2(&changes, fs_root, pool));
 
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_fs_path_change2_t*> map;
+#else
     QMap<QByteArray, svn_fs_path_change2_t*> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
@@ -513,10 +517,18 @@ int SvnRevision::prepareTransactions()
             fflush(stderr);
             exit(1);
         }
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(key), change);
+#else
         map.insertMulti(QByteArray(key), change);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_fs_path_change2_t*> i(map);
+#else
     QMapIterator<QByteArray, svn_fs_path_change2_t*> i(map);
+#endif
     while (i.hasNext()) {
         i.next();
         if (exportEntry(i.key(), i.value(), changes) == EXIT_FAILURE)
@@ -991,16 +1003,28 @@ int SvnRevision::recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, sv
 
     // While we get a hash, put it in a map for sorted lookup, so we can
     // repeat the conversions and get the same git commit hashes.
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_node_kind_t> map;
+#else
     QMap<QByteArray, svn_node_kind_t> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(dirent->name), dirent->kind);
+#else
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_node_kind_t> i(map);
+#else
     QMapIterator<QByteArray, svn_node_kind_t> i(map);
+#endif
     while (i.hasNext()) {
         dirpool.clear();
         i.next();
@@ -1059,17 +1083,29 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
 
     // While we get a hash, put it in a map for sorted lookup, so we can
     // repeat the conversions and get the same git commit hashes.
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_node_kind_t> map;
+#else
     QMap<QByteArray, svn_node_kind_t> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         dirpool.clear();
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(dirent->name), dirent->kind);
+#else
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_node_kind_t> i(map);
+#else
     QMapIterator<QByteArray, svn_node_kind_t> i(map);
+#endif
     while (i.hasNext()) {
         dirpool.clear();
         i.next();
@@ -1287,16 +1323,28 @@ int SvnRevision::addGitIgnoreOnBranch(apr_pool_t *pool, QString key, QString pat
         return EXIT_FAILURE;
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_node_kind_t> map;
+#else
     QMap<QByteArray, svn_node_kind_t> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(dirent->name), dirent->kind);
+#else
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_node_kind_t> i(map);
+#else
     QMapIterator<QByteArray, svn_node_kind_t> i(map);
+#endif
     while (i.hasNext()) {
         i.next();
         QString entryName = key + "/" + i.key();
