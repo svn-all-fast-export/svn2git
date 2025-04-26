@@ -1161,7 +1161,7 @@ int FastImportRepository::Transaction::commit()
     mark_t i = !!parentmark;        // if parentmark != 0, there's at least one parent
 
     if(log.contains("This commit was manufactured by cvs2svn") && merges.count() > 1) {
-        qSort(merges);
+        std::sort(merges.begin(), merges.end());
         repository->fastImport.write("merge :" + QByteArray::number(merges.last()) + "\n");
         merges.pop_back();
         qWarning() << "WARN: Discarding all but the highest merge point as a workaround for cvs2svn created branch/tag"
