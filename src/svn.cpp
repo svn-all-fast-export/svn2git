@@ -438,7 +438,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (repository_p) {
         *repository_p = svnprefix;
+#if QT_VERSION >= 0x060000
+        *repository_p = rule.rx.replaceIn(*repository_p, rule.repository);
+#else
         repository_p->replace(rule.rx, rule.repository);
+#endif
         foreach (Rules::Match::Substitution subst, rule.repo_substs) {
             subst.apply(*repository_p);
         }
@@ -446,7 +450,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (effectiveRepository_p) {
         *effectiveRepository_p = svnprefix;
+#if QT_VERSION >= 0x060000
+        *effectiveRepository_p = rule.rx.replaceIn(*effectiveRepository_p, rule.repository);
+#else
         effectiveRepository_p->replace(rule.rx, rule.repository);
+#endif
         foreach (Rules::Match::Substitution subst, rule.repo_substs) {
             subst.apply(*effectiveRepository_p);
         }
@@ -458,7 +466,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (branch_p) {
         *branch_p = svnprefix;
+#if QT_VERSION >= 0x060000
+        *branch_p = rule.rx.replaceIn(*branch_p, rule.branch);
+#else
         branch_p->replace(rule.rx, rule.branch);
+#endif
         foreach (Rules::Match::Substitution subst, rule.branch_substs) {
             subst.apply(*branch_p);
         }
@@ -466,7 +478,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (path_p) {
         QString prefix = svnprefix;
+#if QT_VERSION >= 0x060000
+        prefix = rule.rx.replaceIn(prefix, rule.prefix);
+#else
         prefix.replace(rule.rx, rule.prefix);
+#endif
         *path_p = prefix + pathName.mid(svnprefix.length());
     }
 }
@@ -1308,7 +1324,11 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         // they didn't match anything in Subversion but would in Git eventually
         ignore->remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
         // add a slash in front to have the same meaning in Git of only working on the direct children
+#if QT_VERSION >= 0x060000
+        *ignore = QRegExp("(^|[\\r\\n])\\s*(?![\\r\\n]|$)").replaceIn(*ignore, "\\1/");
+#else
         ignore->replace(QRegExp("(^|[\\r\\n])\\s*(?![\\r\\n]|$)"), "\\1/");
+#endif
         if (ignore->trimmed().isEmpty()) {
             *ignore = QString();
         }
@@ -1330,7 +1350,11 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
     }
 
     // replace multiple asterisks Subversion meaning by Git meaning
+#if QT_VERSION >= 0x060000
+    *ignore = QRegExp("\\*+").replaceIn(*ignore, "*");
+#else
     ignore->replace(QRegExp("\\*+"), "*");
+#endif
 
     return EXIT_SUCCESS;
 }

@@ -63,7 +63,11 @@ public:
             QString replacement;
 
             bool isValid() { return !pattern.isEmpty(); }
+#if QT_VERSION >= 0x060000
+            QString apply(QString &string) { return pattern.replaceIn(string, replacement); }
+#else
             QString& apply(QString &string) { return string.replace(pattern, replacement); }
+#endif
         };
 
         QRegExp rx;
