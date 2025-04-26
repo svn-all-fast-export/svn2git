@@ -10,6 +10,8 @@ if(!defined(VERSION, var)) {
   VERSION = $$system(git --no-pager show --pretty=oneline --no-notes | head -1 | cut -b-40)
 }
 
+DEFINES += QT_DISABLE_DEPRECATED_UP_TO=0x05FFFF
+
 VERSTR = '\\"$${VERSION}\\"'  # place quotes around the version string
 DEFINES += VER=\"$${VERSTR}\" # create a VER macro containing the version string
 
