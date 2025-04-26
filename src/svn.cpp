@@ -1322,7 +1322,11 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         *ignore = QString(prop->data);
         // remove patterns with slashes or backslashes,
         // they didn't match anything in Subversion but would in Git eventually
+#if QT_VERSION >= 0x060000
+        *ignore = QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)").removeIn(*ignore);
+#else
         ignore->remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
+#endif
         // add a slash in front to have the same meaning in Git of only working on the direct children
 #if QT_VERSION >= 0x060000
         *ignore = QRegExp("(^|[\\r\\n])\\s*(?![\\r\\n]|$)").replaceIn(*ignore, "\\1/");
@@ -1343,7 +1347,11 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         QString global_ignore = QString(prop->data);
         // remove patterns with slashes or backslashes,
         // they didn't match anything in Subversion but would in Git eventually
+#if QT_VERSION >= 0x060000
+        global_ignore = QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)").removeIn(global_ignore);
+#else
         global_ignore.remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
+#endif
         if (!global_ignore.trimmed().isEmpty()) {
             ignore->append(global_ignore);
         }
