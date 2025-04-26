@@ -19,6 +19,8 @@ name: Build (Linux, Ubuntu)
 on:
   pull_request:
   push:
+  schedule:
+    - cron: '0 2 * * 5'  # Every Friday at 2am
 
 jobs:
   build:
