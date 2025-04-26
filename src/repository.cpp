@@ -616,7 +616,7 @@ long long FastImportRepository::markFrom(const QString &branchFrom, int branchRe
         return brFrom.marks.last();
     }
 
-    QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
+    QVector<int>::const_iterator it = std::upper_bound(brFrom.commits.constBegin(), brFrom.commits.constEnd(), branchRevNum);
     if (it == brFrom.commits.begin()) {
         return 0;
     }
