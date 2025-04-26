@@ -17,8 +17,15 @@
 name: Build (Linux, Ubuntu)
 
 on:
-- pull_request
-- push
+  pull_request:
+  push:
+  schedule:
+    - cron: '0 2 * * 5'  # Every Friday at 2am
+  workflow_dispatch:
+
+# Reduce permissions to minimum for security
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -26,10 +33,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - runs-on: ubuntu-24.04
+            qt: qt5-qmake
           - runs-on: ubuntu-22.04
             qt: qt5-qmake
-          - runs-on: ubuntu-18.04
-            qt: qt5-default
 
     name: Build (Linux, ${{ matrix.runs-on }})
     runs-on: ${{ matrix.runs-on }}
@@ -43,7 +50,8 @@ jobs:
             libapr1-dev \
             libsvn-dev \
             ${{ matrix.qt }} \
-            qtbase5-dev
+            qtbase5-dev \
+            subversion
 
       - name: 'Checkout Git branch'
         uses: actions/checkout@v3
