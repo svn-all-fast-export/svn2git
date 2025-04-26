@@ -29,6 +29,10 @@ target.path = $$BINDIR
 DEPENDPATH += .
 QT = core
 
+greaterThan(QT_MAJOR_VERSION, 5) {
+    QT += core5compat
+}
+
 INCLUDEPATH += . $$SVN_INCLUDE $$APR_INCLUDE
 !isEmpty(SVN_LIBDIR): LIBS += -L$$SVN_LIBDIR
 LIBS += -lsvn_fs-1 -lsvn_repos-1 -lapr-1 -lsvn_subr-1
