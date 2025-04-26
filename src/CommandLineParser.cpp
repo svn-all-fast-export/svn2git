@@ -335,10 +335,10 @@ void CommandLineParser::usage(const QString &name, const QString &argumentDescri
         cout << " [OPTION]";
     if (! argumentDescription.isEmpty())
         cout << " " << argumentDescription;
-    cout << endl << endl;
+    cout << Qt::endl << Qt::endl;
 
     if (d->definitions.count() > 0)
-        cout << "Options:" << endl;
+        cout << "Options:" << Qt::endl;
     int commandLength = 0;
     foreach (Private::OptionDefinition definition, d->definitions)
         commandLength = qMax(definition.name.length(), commandLength);
@@ -352,7 +352,7 @@ void CommandLineParser::usage(const QString &name, const QString &argumentDescri
         cout << definition.name;
         for (int i = definition.name.length(); i <= commandLength; i++)
             cout << ' ';
-         cout << definition.comment <<endl;
+         cout << definition.comment << Qt::endl;
     }
 }
 

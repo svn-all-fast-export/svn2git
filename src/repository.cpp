@@ -737,7 +737,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
                                                               int revnum)
 {
     if (!branchExists(branch)) {
-        qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << endl
+        qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << Qt::endl
                    << "Going to create it automatically";
     }
 
