@@ -34,11 +34,23 @@ jobs:
       matrix:
         include:
           - runs-on: ubuntu-24.04
-            qt: qt5-qmake
+            qt_major: 6
+            qt_qmake: qmake6
+            qt_packages: qmake6 qt6-base-dev qt6-5compat-dev
+          - runs-on: ubuntu-24.04
+            qt_major: 5
+            qt_qmake: qmake
+            qt_packages: qt5-qmake qtbase5-dev
           - runs-on: ubuntu-22.04
-            qt: qt5-qmake
+            qt_major: 6
+            qt_qmake: qmake6
+            qt_packages: qmake6 qt6-base-dev libqt6core5compat6-dev
+          - runs-on: ubuntu-22.04
+            qt_major: 5
+            qt_qmake: qmake
+            qt_packages: qt5-qmake qtbase5-dev
 
-    name: Build (Linux, ${{ matrix.runs-on }})
+    name: Build (Linux, ${{ matrix.runs-on }}, Qt ${{ matrix.qt_major }})
     runs-on: ${{ matrix.runs-on }}
     steps:
       - name: 'Install build dependencies'
@@ -49,8 +61,7 @@ jobs:
             build-essential \
             libapr1-dev \
             libsvn-dev \
-            ${{ matrix.qt }} \
-            qtbase5-dev \
+            ${{ matrix.qt_packages }} \
             subversion
 
       - name: 'Checkout Git branch'
@@ -59,8 +70,10 @@ jobs:
           submodules: true
 
       - name: 'Configure'
+        env:
+          QMAKE: ${{ matrix.qt_qmake }}
         run: |-
-          qmake
+          ${QMAKE}
 
       - name: 'Build'
         run: |-
