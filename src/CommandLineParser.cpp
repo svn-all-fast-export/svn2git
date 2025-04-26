@@ -327,7 +327,11 @@ CommandLineParser::~CommandLineParser()
 
 void CommandLineParser::usage(const QString &name, const QString &argumentDescription)
 {
+#if QT_VERSION >= 0x060000
+    QTextStream cout(stdout, QIODeviceBase::WriteOnly);
+#else
     QTextStream cout(stdout, QIODevice::WriteOnly);
+#endif
     cout << "Usage: " << d->argumentStrings[0];
     if (! name.isEmpty())
         cout << " " << name;
