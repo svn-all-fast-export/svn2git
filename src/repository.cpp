@@ -1027,7 +1027,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     modifiedFiles.append(" :");
     modifiedFiles.append(QByteArray::number(mark));
     modifiedFiles.append(' ');
-    modifiedFiles.append(repository->prefix + path.toUtf8());
+    modifiedFiles.append(repository->prefix.toUtf8() + path.toUtf8());
     modifiedFiles.append("\n");
 
     // it is returned for being written to, so start the process in any case
@@ -1080,11 +1080,11 @@ bool FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
     QByteArray s("");
     s.append("commit refs/notes/commits\n");
     s.append("mark :" + QByteArray::number(maxMark) + "\n");
-    s.append("committer " + author + " " + QString::number(datetime) + " +0000" + "\n");
-    s.append("data " + QString::number(message.length()) + "\n");
+    s.append("committer " + author + " " + QByteArray::number(datetime) + " +0000" + "\n");
+    s.append("data " + QByteArray::number(message.length()) + "\n");
     s.append(message + "\n");
     s.append("N inline " + commitRef + "\n");
-    s.append("data " + QString::number(text.length()) + "\n");
+    s.append("data " + QByteArray::number(text.length()) + "\n");
     s.append(text + "\n");
     repository->startFastImport();
     repository->fastImport.write(s);
@@ -1152,7 +1152,7 @@ int FastImportRepository::Transaction::commit()
     s.append("commit " + branchRef + "\n");
     s.append("mark :" + QByteArray::number(mark) + "\n");
     s.append("committer " + author + " " + QString::number(datetime).toUtf8() + " +0000" + "\n");
-    s.append("data " + QString::number(message.length()) + "\n");
+    s.append("data " + QByteArray::number(message.length()) + "\n");
     s.append(message + "\n");
     repository->fastImport.write(s);
 
