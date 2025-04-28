@@ -12,7 +12,7 @@ end repository
 
 match /trunk/
   repository myproject
-  branch master
+  branch main
 end match
 
 # Ignore this branch:
