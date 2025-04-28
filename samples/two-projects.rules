@@ -15,12 +15,12 @@ end repository
 
 match /project1/trunk/
   repository project1
-  branch master
+  branch main
 end match
 
 match /project2/trunk/
   repository project2
-  branch master
+  branch main
 end match
 
 # Note how we can use regexp to capture the repository name

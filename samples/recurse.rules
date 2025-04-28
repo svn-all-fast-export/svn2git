@@ -15,7 +15,7 @@ end repository
 
 match /trunk/([^/]+)/
   repository \1
-  branch master
+  branch main
 end match
 
 #
