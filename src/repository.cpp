@@ -616,7 +616,7 @@ long long FastImportRepository::markFrom(const QString &branchFrom, int branchRe
         return brFrom.marks.last();
     }
 
-    QVector<int>::const_iterator it = qUpperBound(brFrom.commits, branchRevNum);
+    QVector<int>::const_iterator it = std::upper_bound(brFrom.commits.constBegin(), brFrom.commits.constEnd(), branchRevNum);
     if (it == brFrom.commits.begin()) {
         return 0;
     }
@@ -737,7 +737,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
                                                               int revnum)
 {
     if (!branchExists(branch)) {
-        qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << endl
+        qWarning() << "WARN: Transaction:" << branch << "is not a known branch in repository" << name << Qt::endl
                    << "Going to create it automatically";
     }
 
@@ -1027,7 +1027,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
     modifiedFiles.append(" :");
     modifiedFiles.append(QByteArray::number(mark));
     modifiedFiles.append(' ');
-    modifiedFiles.append(repository->prefix + path.toUtf8());
+    modifiedFiles.append(repository->prefix.toUtf8() + path.toUtf8());
     modifiedFiles.append("\n");
 
     // it is returned for being written to, so start the process in any case
@@ -1080,11 +1080,11 @@ bool FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
     QByteArray s("");
     s.append("commit refs/notes/commits\n");
     s.append("mark :" + QByteArray::number(maxMark) + "\n");
-    s.append("committer " + author + " " + QString::number(datetime) + " +0000" + "\n");
-    s.append("data " + QString::number(message.length()) + "\n");
+    s.append("committer " + author + " " + QByteArray::number(datetime) + " +0000" + "\n");
+    s.append("data " + QByteArray::number(message.length()) + "\n");
     s.append(message + "\n");
     s.append("N inline " + commitRef + "\n");
-    s.append("data " + QString::number(text.length()) + "\n");
+    s.append("data " + QByteArray::number(text.length()) + "\n");
     s.append(text + "\n");
     repository->startFastImport();
     repository->fastImport.write(s);
@@ -1152,7 +1152,7 @@ int FastImportRepository::Transaction::commit()
     s.append("commit " + branchRef + "\n");
     s.append("mark :" + QByteArray::number(mark) + "\n");
     s.append("committer " + author + " " + QString::number(datetime).toUtf8() + " +0000" + "\n");
-    s.append("data " + QString::number(message.length()) + "\n");
+    s.append("data " + QByteArray::number(message.length()) + "\n");
     s.append(message + "\n");
     repository->fastImport.write(s);
 
@@ -1161,7 +1161,7 @@ int FastImportRepository::Transaction::commit()
     mark_t i = !!parentmark;        // if parentmark != 0, there's at least one parent
 
     if(log.contains("This commit was manufactured by cvs2svn") && merges.count() > 1) {
-        qSort(merges);
+        std::sort(merges.begin(), merges.end());
         repository->fastImport.write("merge :" + QByteArray::number(merges.last()) + "\n");
         merges.pop_back();
         qWarning() << "WARN: Discarding all but the highest merge point as a workaround for cvs2svn created branch/tag"

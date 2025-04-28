@@ -438,7 +438,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (repository_p) {
         *repository_p = svnprefix;
+#if QT_VERSION >= 0x060000
+        *repository_p = rule.rx.replaceIn(*repository_p, rule.repository);
+#else
         repository_p->replace(rule.rx, rule.repository);
+#endif
         foreach (Rules::Match::Substitution subst, rule.repo_substs) {
             subst.apply(*repository_p);
         }
@@ -446,7 +450,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (effectiveRepository_p) {
         *effectiveRepository_p = svnprefix;
+#if QT_VERSION >= 0x060000
+        *effectiveRepository_p = rule.rx.replaceIn(*effectiveRepository_p, rule.repository);
+#else
         effectiveRepository_p->replace(rule.rx, rule.repository);
+#endif
         foreach (Rules::Match::Substitution subst, rule.repo_substs) {
             subst.apply(*effectiveRepository_p);
         }
@@ -458,7 +466,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (branch_p) {
         *branch_p = svnprefix;
+#if QT_VERSION >= 0x060000
+        *branch_p = rule.rx.replaceIn(*branch_p, rule.branch);
+#else
         branch_p->replace(rule.rx, rule.branch);
+#endif
         foreach (Rules::Match::Substitution subst, rule.branch_substs) {
             subst.apply(*branch_p);
         }
@@ -466,7 +478,11 @@ void SvnRevision::splitPathName(const Rules::Match &rule, const QString &pathNam
 
     if (path_p) {
         QString prefix = svnprefix;
+#if QT_VERSION >= 0x060000
+        prefix = rule.rx.replaceIn(prefix, rule.prefix);
+#else
         prefix.replace(rule.rx, rule.prefix);
+#endif
         *path_p = prefix + pathName.mid(svnprefix.length());
     }
 }
@@ -477,7 +493,11 @@ int SvnRevision::prepareTransactions()
     apr_hash_t *changes;
     SVN_ERR(svn_fs_paths_changed2(&changes, fs_root, pool));
 
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_fs_path_change2_t*> map;
+#else
     QMap<QByteArray, svn_fs_path_change2_t*> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, changes); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
@@ -497,10 +517,18 @@ int SvnRevision::prepareTransactions()
             fflush(stderr);
             exit(1);
         }
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(key), change);
+#else
         map.insertMulti(QByteArray(key), change);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_fs_path_change2_t*> i(map);
+#else
     QMapIterator<QByteArray, svn_fs_path_change2_t*> i(map);
+#endif
     while (i.hasNext()) {
         i.next();
         if (exportEntry(i.key(), i.value(), changes) == EXIT_FAILURE)
@@ -975,16 +1003,28 @@ int SvnRevision::recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, sv
 
     // While we get a hash, put it in a map for sorted lookup, so we can
     // repeat the conversions and get the same git commit hashes.
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_node_kind_t> map;
+#else
     QMap<QByteArray, svn_node_kind_t> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(dirent->name), dirent->kind);
+#else
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_node_kind_t> i(map);
+#else
     QMapIterator<QByteArray, svn_node_kind_t> i(map);
+#endif
     while (i.hasNext()) {
         dirpool.clear();
         i.next();
@@ -1043,17 +1083,29 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
 
     // While we get a hash, put it in a map for sorted lookup, so we can
     // repeat the conversions and get the same git commit hashes.
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_node_kind_t> map;
+#else
     QMap<QByteArray, svn_node_kind_t> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         dirpool.clear();
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(dirent->name), dirent->kind);
+#else
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_node_kind_t> i(map);
+#else
     QMapIterator<QByteArray, svn_node_kind_t> i(map);
+#endif
     while (i.hasNext()) {
         dirpool.clear();
         i.next();
@@ -1271,16 +1323,28 @@ int SvnRevision::addGitIgnoreOnBranch(apr_pool_t *pool, QString key, QString pat
         return EXIT_FAILURE;
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMap<QByteArray, svn_node_kind_t> map;
+#else
     QMap<QByteArray, svn_node_kind_t> map;
+#endif
     for (apr_hash_index_t *i = apr_hash_first(pool, entries); i; i = apr_hash_next(i)) {
         const void *vkey;
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
+#if QT_VERSION >= 0x060000
+        map.insert(QByteArray(dirent->name), dirent->kind);
+#else
         map.insertMulti(QByteArray(dirent->name), dirent->kind);
+#endif
     }
 
+#if QT_VERSION >= 0x060000
+    QMultiMapIterator<QByteArray, svn_node_kind_t> i(map);
+#else
     QMapIterator<QByteArray, svn_node_kind_t> i(map);
+#endif
     while (i.hasNext()) {
         i.next();
         QString entryName = key + "/" + i.key();
@@ -1306,9 +1370,17 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         *ignore = QString(prop->data);
         // remove patterns with slashes or backslashes,
         // they didn't match anything in Subversion but would in Git eventually
+#if QT_VERSION >= 0x060000
+        *ignore = QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)").removeIn(*ignore);
+#else
         ignore->remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
+#endif
         // add a slash in front to have the same meaning in Git of only working on the direct children
+#if QT_VERSION >= 0x060000
+        *ignore = QRegExp("(^|[\\r\\n])\\s*(?![\\r\\n]|$)").replaceIn(*ignore, "\\1/");
+#else
         ignore->replace(QRegExp("(^|[\\r\\n])\\s*(?![\\r\\n]|$)"), "\\1/");
+#endif
         if (ignore->trimmed().isEmpty()) {
             *ignore = QString();
         }
@@ -1323,14 +1395,22 @@ int SvnRevision::fetchIgnoreProps(QString *ignore, apr_pool_t *pool, const char 
         QString global_ignore = QString(prop->data);
         // remove patterns with slashes or backslashes,
         // they didn't match anything in Subversion but would in Git eventually
+#if QT_VERSION >= 0x060000
+        global_ignore = QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)").removeIn(global_ignore);
+#else
         global_ignore.remove(QRegExp("^[^\\r\\n]*[\\\\/][^\\r\\n]*(?:[\\r\\n]|$)|[\\r\\n][^\\r\\n]*[\\\\/][^\\r\\n]*(?=[\\r\\n]|$)"));
+#endif
         if (!global_ignore.trimmed().isEmpty()) {
             ignore->append(global_ignore);
         }
     }
 
     // replace multiple asterisks Subversion meaning by Git meaning
+#if QT_VERSION >= 0x060000
+    *ignore = QRegExp("\\*+").replaceIn(*ignore, "*");
+#else
     ignore->replace(QRegExp("\\*+"), "*");
+#endif
 
     return EXIT_SUCCESS;
 }

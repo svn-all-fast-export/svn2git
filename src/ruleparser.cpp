@@ -156,7 +156,7 @@ void Rules::load(const QString &filename)
         qFatal("Could not read the rules file: %s", qPrintable(filename));
 
     QTextStream s(&file);
-    QStringList lines = s.readAll().split('\n', QString::KeepEmptyParts);
+    QStringList lines = s.readAll().split('\n', Qt::KeepEmptyParts);
 
     QStringList::iterator it;
     for(it = lines.begin(); it != lines.end(); ++it) {

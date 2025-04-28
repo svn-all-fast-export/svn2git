@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         foreach (QString option, args->undefinedOptions()) {
             if (!first)
                 out << "          : ";
-            out << "unrecognized option or missing argument for; `" << option << "'" << endl;
+            out << "unrecognized option or missing argument for; `" << option << "'" << Qt::endl;
             first = false;
         }
         return 10;

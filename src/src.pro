@@ -10,6 +10,8 @@ if(!defined(VERSION, var)) {
   VERSION = $$system(git --no-pager show --pretty=oneline --no-notes | head -1 | cut -b-40)
 }
 
+DEFINES += QT_DISABLE_DEPRECATED_UP_TO=0x05FFFF
+
 VERSTR = '\\"$${VERSION}\\"'  # place quotes around the version string
 DEFINES += VER=\"$${VERSTR}\" # create a VER macro containing the version string
 
@@ -26,6 +28,16 @@ target.path = $$BINDIR
 
 DEPENDPATH += .
 QT = core
+
+_MIN_QT_VERSION = 5.14.0
+
+!versionAtLeast(QT_VERSION, $${_MIN_QT_VERSION}) {
+    error("Qt $${QT_VERSION} found but Qt >=$${_MIN_QT_VERSION} required, cannot continue.")
+}
+
+greaterThan(QT_MAJOR_VERSION, 5) {
+    QT += core5compat
+}
 
 INCLUDEPATH += . $$SVN_INCLUDE $$APR_INCLUDE
 !isEmpty(SVN_LIBDIR): LIBS += -L$$SVN_LIBDIR

@@ -79,7 +79,7 @@ void CommandLineParser::Private::addDefinitions(const CommandLineOption * option
         QString option = QString::fromLatin1(options[i].specification);
         // options with optional params are written as "--option required[, optional]
         if (option.indexOf(QLatin1Char(',')) >= 0 && ( option.indexOf(QLatin1Char('[')) < 0 || option.indexOf(QLatin1Char(']')) < 0) ) {
-            QStringList optionParts = option.split(QLatin1Char(','), QString::SkipEmptyParts);
+            QStringList optionParts = option.split(QLatin1Char(','), Qt::SkipEmptyParts);
             if (optionParts.count() != 2) {
                 qWarning() << "WARN: option definition '" << option << "' is faulty; only one ',' allowed";
                 continue;
@@ -104,7 +104,7 @@ void CommandLineParser::Private::addDefinitions(const CommandLineOption * option
         if(definition.name.isEmpty())
             continue;
         if (option.indexOf(QLatin1Char(' ')) > 0) {
-            QStringList optionParts = definition.name.split(QLatin1Char(' '), QString::SkipEmptyParts);
+            QStringList optionParts = definition.name.split(QLatin1Char(' '), Qt::SkipEmptyParts);
             definition.name = optionParts[0];
             bool first = true;
             foreach (QString s, optionParts) {
@@ -137,7 +137,7 @@ void CommandLineParser::Private::setArgumentDefinition(const char *defs)
 {
     requiredArguments = 0;
     argumentDefinition = QString::fromLatin1(defs);
-    QStringList optionParts = argumentDefinition.split(QLatin1Char(' '), QString::SkipEmptyParts);
+    QStringList optionParts = argumentDefinition.split(QLatin1Char(' '), Qt::SkipEmptyParts);
     bool inArg = false;
     foreach (QString s, optionParts) {
         s = s.trimmed();
@@ -327,7 +327,11 @@ CommandLineParser::~CommandLineParser()
 
 void CommandLineParser::usage(const QString &name, const QString &argumentDescription)
 {
+#if QT_VERSION >= 0x060000
+    QTextStream cout(stdout, QIODeviceBase::WriteOnly);
+#else
     QTextStream cout(stdout, QIODevice::WriteOnly);
+#endif
     cout << "Usage: " << d->argumentStrings[0];
     if (! name.isEmpty())
         cout << " " << name;
@@ -335,10 +339,10 @@ void CommandLineParser::usage(const QString &name, const QString &argumentDescri
         cout << " [OPTION]";
     if (! argumentDescription.isEmpty())
         cout << " " << argumentDescription;
-    cout << endl << endl;
+    cout << Qt::endl << Qt::endl;
 
     if (d->definitions.count() > 0)
-        cout << "Options:" << endl;
+        cout << "Options:" << Qt::endl;
     int commandLength = 0;
     foreach (Private::OptionDefinition definition, d->definitions)
         commandLength = qMax(definition.name.length(), commandLength);
@@ -352,7 +356,7 @@ void CommandLineParser::usage(const QString &name, const QString &argumentDescri
         cout << definition.name;
         for (int i = definition.name.length(); i <= commandLength; i++)
             cout << ' ';
-         cout << definition.comment <<endl;
+         cout << definition.comment << Qt::endl;
     }
 }
 
