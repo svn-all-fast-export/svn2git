@@ -170,11 +170,11 @@ int main(int argc, char **argv)
         return 0;
     }
     if (args->contains(QLatin1String("help"))) {
-        args->usage(QString(), "[Path to subversion repo]");
+        args->usage(QString(), "--rules RULES_FILE SVN_REPO_DIR/");
         return 0;
     }
     if (args->arguments().count() != 1) {
-        args->usage(QString(), "[Path to subversion repo]");
+        args->usage(QString(), "--rules RULES_FILE SVN_REPO_DIR/");
         return 12;
     }
     if (args->undefinedOptions().count()) {
