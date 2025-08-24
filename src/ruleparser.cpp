@@ -173,7 +173,7 @@ void Rules::load(const QString &filename)
 
         bool isIncludeRule = includeLine.exactMatch(line);
         if (isIncludeRule) {
-            int index = filename.lastIndexOf("/");
+            int index = filename.lastIndexOf('/');
             QString includeFile = filename.left( index + 1) + includeLine.cap(1);
             load(includeFile);
         } else {
@@ -206,7 +206,7 @@ void Rules::load(const QString &filename)
                 } else if (matchPrefixLine.exactMatch(line)) {
                     repo.prefix = matchPrefixLine.cap(1);
                     continue;
-                } else if (line == "end repository") {
+                } else if (line == QLatin1String("end repository")) {
                     if (!repo.forwardTo.isEmpty()
                         && !repo.description.isEmpty()) {
 
@@ -252,7 +252,7 @@ void Rules::load(const QString &filename)
                     match.branch_substs += subst;
                     continue;
                 } else if (matchRevLine.exactMatch(line)) {
-                    if (matchRevLine.cap(1) == "min")
+                    if (matchRevLine.cap(1) == QLatin1String("min"))
                         match.minRevision = matchRevLine.cap(2).toInt();
                     else            // must be max
                         match.maxRevision = matchRevLine.cap(2).toInt();
@@ -264,19 +264,19 @@ void Rules::load(const QString &filename)
                     continue;
                 } else if (matchActionLine.exactMatch(line)) {
                     QString action = matchActionLine.cap(1);
-                    if (action == "export")
+                    if (action == QLatin1String("export"))
                         match.action = Match::Export;
-                    else if (action == "ignore")
+                    else if (action == QLatin1String("ignore"))
                         match.action = Match::Ignore;
-                    else if (action == "recurse")
+                    else if (action == QLatin1String("recurse"))
                         match.action = Match::Recurse;
                     else
                         qFatal("Invalid action \"%s\" on line %d", qPrintable(action), lineNumber);
                     continue;
                 } else if (matchAnnotateLine.exactMatch(line)) {
-                    match.annotate = matchAnnotateLine.cap(1) == "true";
+                    match.annotate = matchAnnotateLine.cap(1) == QLatin1String("true");
                     continue;
-                } else if (line == "end match") {
+                } else if (line == QLatin1String("end match")) {
                     if (!match.repository.isEmpty())
                         match.action = Match::Export;
                     m_matchRules += match;
@@ -336,7 +336,7 @@ private:
 
 Stats::Stats() : d(new Private())
 {
-    use = CommandLineParser::instance()->contains("stats");
+    use = CommandLineParser::instance()->contains(QStringLiteral("stats"));
 }
 
 Stats::~Stats()

@@ -32,7 +32,7 @@ class LoggingQProcess : public QProcess
     bool logging;
 public:
     LoggingQProcess(const QString filename) : QProcess(), log() {
-        if(CommandLineParser::instance()->contains("debug-rules")) {
+        if(CommandLineParser::instance()->contains(QStringLiteral("debug-rules"))) {
             logging = true;
             QString name = filename;
             name.replace('/', '_');

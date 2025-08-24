@@ -110,7 +110,7 @@ QSet<int> loadRevisionsFile( const QString &fileName, Svn &svn )
                 continue;
             }
             int lastrev = 0;
-            if(revint.cap(2) == "HEAD") {
+            if(revint.cap(2) == QLatin1String("HEAD")) {
                 lastrev = svn.youngestRevision();
                 ok = true;
             } else {
@@ -170,11 +170,11 @@ int main(int argc, char **argv)
         return 0;
     }
     if (args->contains(QLatin1String("help"))) {
-        args->usage(QString(), "--rules RULES_FILE SVN_REPO_DIR/");
+        args->usage(QString(), QStringLiteral("--rules RULES_FILE SVN_REPO_DIR/"));
         return 0;
     }
     if (args->arguments().count() != 1) {
-        args->usage(QString(), "--rules RULES_FILE SVN_REPO_DIR/");
+        args->usage(QString(), QStringLiteral("--rules RULES_FILE SVN_REPO_DIR/"));
         return 12;
     }
     if (args->undefinedOptions().count()) {
@@ -189,23 +189,23 @@ int main(int argc, char **argv)
         }
         return 10;
     }
-    if (!args->contains("rules")) {
+    if (!args->contains(QLatin1String("rules"))) {
         QTextStream out(stderr);
         out << "svn-all-fast-export failed: please specify the rules using the 'rules' argument\n";
         return 11;
     }
-    if (!args->contains("identity-map") && !args->contains("identity-domain")) {
+    if (!args->contains(QLatin1String("identity-map")) && !args->contains(QLatin1String("identity-domain"))) {
         QTextStream out(stderr);
         out << "WARNING; no identity-map or -domain specified, all commits will use default @localhost email address\n\n";
     }
 
     QCoreApplication app(argc, argv);
     // Load the configuration
-    RulesList rulesList(args->optionArgument(QLatin1String("rules")));
+    RulesList rulesList(args->optionArgument(QStringLiteral("rules")));
     rulesList.load();
 
-    int resume_from = args->optionArgument(QLatin1String("resume-from")).toInt();
-    int max_rev = args->optionArgument(QLatin1String("max-rev")).toInt();
+    int resume_from = args->optionArgument(QStringLiteral("resume-from")).toInt();
+    int max_rev = args->optionArgument(QStringLiteral("max-rev")).toInt();
 
     // create the repository list
     QHash<QString, Repository *> repositories;
@@ -263,9 +263,9 @@ int main(int argc, char **argv)
     Svn svn(args->arguments().constFirst());
     svn.setMatchRules(rulesList.allMatchRules());
     svn.setRepositories(repositories);
-    svn.setIdentityMap(loadIdentityMapFile(args->optionArgument("identity-map")));
+    svn.setIdentityMap(loadIdentityMapFile(args->optionArgument(QStringLiteral("identity-map"))));
     // Massage user input a little, no guarantees that input makes sense.
-    QString domain = args->optionArgument("identity-domain").simplified().remove(QChar('@'));
+    QString domain = args->optionArgument(QStringLiteral("identity-domain")).simplified().remove(QChar('@'));
     if (domain.isEmpty())
         domain = QString("localhost");
     svn.setIdentityDomain(domain);
@@ -274,7 +274,7 @@ int main(int argc, char **argv)
         max_rev = svn.youngestRevision();
 
     bool errors = false;
-    QSet<int> revisions = loadRevisionsFile(args->optionArgument(QLatin1String("revisions-file")), svn);
+    QSet<int> revisions = loadRevisionsFile(args->optionArgument(QStringLiteral("revisions-file")), svn);
     const bool filerRevisions = !revisions.isEmpty();
     for (int i = min_rev; i <= max_rev; ++i) {
         if(filerRevisions) {
