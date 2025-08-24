@@ -517,11 +517,7 @@ int SvnRevision::prepareTransactions()
             fflush(stderr);
             exit(1);
         }
-#if QT_VERSION >= 0x060000
         map.insert(QByteArray(key), change);
-#else
-        map.insertMulti(QByteArray(key), change);
-#endif
     }
 
 #if QT_VERSION >= 0x060000
@@ -1013,11 +1009,7 @@ int SvnRevision::recursiveDumpDir(Repository::Transaction *txn, svn_fs_t *fs, sv
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-#if QT_VERSION >= 0x060000
         map.insert(QByteArray(dirent->name), dirent->kind);
-#else
-        map.insertMulti(QByteArray(dirent->name), dirent->kind);
-#endif
     }
 
 #if QT_VERSION >= 0x060000
@@ -1094,11 +1086,7 @@ int SvnRevision::recurse(const char *path, const svn_fs_path_change2_t *change,
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-#if QT_VERSION >= 0x060000
         map.insert(QByteArray(dirent->name), dirent->kind);
-#else
-        map.insertMulti(QByteArray(dirent->name), dirent->kind);
-#endif
     }
 
 #if QT_VERSION >= 0x060000
@@ -1333,11 +1321,7 @@ int SvnRevision::addGitIgnoreOnBranch(apr_pool_t *pool, QString key, QString pat
         void *value;
         apr_hash_this(i, &vkey, NULL, &value);
         svn_fs_dirent_t *dirent = reinterpret_cast<svn_fs_dirent_t *>(value);
-#if QT_VERSION >= 0x060000
         map.insert(QByteArray(dirent->name), dirent->kind);
-#else
-        map.insertMulti(QByteArray(dirent->name), dirent->kind);
-#endif
     }
 
 #if QT_VERSION >= 0x060000
