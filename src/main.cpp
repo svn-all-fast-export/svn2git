@@ -260,7 +260,7 @@ int main(int argc, char **argv)
         min_rev = resume_from;
 
     Svn::initialize();
-    Svn svn(args->arguments().first());
+    Svn svn(args->arguments().constFirst());
     svn.setMatchRules(rulesList.allMatchRules());
     svn.setRepositories(repositories);
     svn.setIdentityMap(loadIdentityMapFile(args->optionArgument("identity-map")));
