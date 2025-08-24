@@ -184,7 +184,7 @@ void CommandLineParser::Private::parse()
                 else if (!clp->undefinedOptions.contains(option.option))
                     clp->undefinedOptions << option.option;
                 else
-                    clp->errors.append(QLatin1String("Not enough arguments passed for option `")
+                    clp->errors.append(QStringLiteral("Not enough arguments passed for option `")
                             + option.option +QLatin1Char('\''));
             }
             option.option.clear();
@@ -260,7 +260,7 @@ void CommandLineParser::Private::parse()
     processor.next(option);
 
     if (requiredArguments > arguments.count())
-        errors.append(QLatin1String("Not enough arguments, usage: ") + QString::fromLocal8Bit(argumentStrings[0])
+        errors.append(QStringLiteral("Not enough arguments, usage: ") + QString::fromLocal8Bit(argumentStrings[0])
                 + QLatin1Char(' ') + argumentDefinition);
 
 /*
@@ -367,6 +367,12 @@ QStringList CommandLineParser::options() const
 }
 
 bool CommandLineParser::contains(const QString & key) const
+{
+    d->parse();
+    return d->options.contains(key);
+}
+
+bool CommandLineParser::contains(const QLatin1String & key) const
 {
     d->parse();
     return d->options.contains(key);

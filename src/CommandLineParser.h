@@ -72,6 +72,14 @@ public:
      */
     bool contains(const QString & key) const;
 
+    /**
+     * returns true if the option was found.
+     * Consider the following definition "--expert level"  The user can type as an argument
+     * "--expert 10".  Calling contains("expert") will return true.
+     * @see optionArgument()
+     */
+    bool contains(const QLatin1String & key) const;
+
     /// returns the list of items that are not options, note that the first one is the name of the command called
     QStringList arguments() const;
 

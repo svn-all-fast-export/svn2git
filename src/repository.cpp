@@ -329,7 +329,7 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
 
     // create the defaultBranch from the config
     QProcess config;
-    config.start("git", QStringList() << "config" << "init.defaultBranch");
+    config.start(QStringLiteral("git"), QStringList() << QStringLiteral("config") << QStringLiteral("init.defaultBranch"));
     config.waitForFinished(-1);
     defaultBranch = QString(config.readAllStandardOutput()).trimmed();
 
@@ -340,22 +340,22 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
 
     branches[defaultBranch].created = 1;
 
-    if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
+    if (!CommandLineParser::instance()->contains(QStringLiteral("dry-run")) && !CommandLineParser::instance()->contains(QStringLiteral("create-dump"))) {
         fastImport.setWorkingDirectory(name);
         if (!QDir(name).exists()) { // repo doesn't exist yet.
             qDebug() << "Creating new repository" << name;
             QDir::current().mkpath(name);
             QProcess init;
             init.setWorkingDirectory(name);
-            init.start("git", QStringList() << "--bare" << "init");
+            init.start(QStringLiteral("git"), QStringList() << QStringLiteral("--bare") << QStringLiteral("init"));
             init.waitForFinished(-1);
             QProcess casesensitive;
             casesensitive.setWorkingDirectory(name);
-            casesensitive.start("git", QStringList() << "config" << "core.ignorecase" << "false");
+            casesensitive.start(QStringLiteral("git"), QStringList() << QStringLiteral("config") << QStringLiteral("core.ignorecase") << QStringLiteral("false"));
             casesensitive.waitForFinished(-1);
             // Write description
             if (!rule.description.isEmpty()) {
-                QFile fDesc(QDir(name).filePath("description"));
+                QFile fDesc(QDir(name).filePath(QStringLiteral("description")));
                 if (fDesc.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
                             fDesc.write(rule.description.toUtf8());
                     fDesc.putChar('\n');
@@ -374,7 +374,7 @@ FastImportRepository::FastImportRepository(const Rules::Repository &rule)
 static QString logFileName(QString name)
 {
     name.replace('/', '_');
-    if (CommandLineParser::instance()->contains("create-dump"))
+    if (CommandLineParser::instance()->contains(QStringLiteral("create-dump")))
         name.append(".fi");
     else
         name.prepend("log-");
@@ -551,7 +551,7 @@ FastImportRepository::~FastImportRepository()
 void FastImportRepository::closeFastImport()
 {
     if (fastImport.state() != QProcess::NotRunning) {
-        int fastImportTimeout = CommandLineParser::instance()->optionArgument(QLatin1String("fast-import-timeout"), QLatin1String("30")).toInt();
+        int fastImportTimeout = CommandLineParser::instance()->optionArgument(QStringLiteral("fast-import-timeout"), QStringLiteral("30")).toInt();
         if(fastImportTimeout == 0) {
             qDebug() << "Waiting forever for fast-import to finish.";
             fastImportTimeout = -1;
@@ -575,8 +575,9 @@ void FastImportRepository::closeFastImport()
 void FastImportRepository::reloadBranches()
 {
     bool reset_notes = false;
-    foreach (QString branch, branches.keys()) {
-        Branch &br = branches[branch];
+    for (auto it = branches.keyValueBegin(); it != branches.keyValueEnd(); ++it) {
+        const QString &branch = it->first;
+        Branch &br = it->second;
 
         if (br.marks.isEmpty() || !br.marks.last())
             continue;
@@ -594,7 +595,7 @@ void FastImportRepository::reloadBranches()
     }
 
     if (reset_notes &&
-        CommandLineParser::instance()->contains("add-metadata-notes")) {
+        CommandLineParser::instance()->contains(QStringLiteral("add-metadata-notes"))) {
 
         startFastImport();
         fastImport.write("reset refs/notes/commits\nfrom :" +
@@ -617,7 +618,7 @@ long long FastImportRepository::markFrom(const QString &branchFrom, int branchRe
     }
 
     QVector<int>::const_iterator it = std::upper_bound(brFrom.commits.constBegin(), brFrom.commits.constEnd(), branchRevNum);
-    if (it == brFrom.commits.begin()) {
+    if (it == brFrom.commits.constBegin()) {
         return 0;
     }
 
@@ -723,7 +724,7 @@ void FastImportRepository::commit()
         QString tagName = *it;
         if (resetBranchNames.contains(tagName))
             continue;
-        if (tagName.startsWith("refs/tags/"))
+        if (tagName.startsWith(QLatin1String("refs/tags/")))
             tagName.remove(0, 10);
         if (annotatedTags.remove(tagName) > 0) {
             qDebug() << "Removing annotated tag" << tagName << "for" << name;
@@ -748,7 +749,7 @@ Repository::Transaction *FastImportRepository::newTransaction(const QString &bra
     txn->datetime = 0;
     txn->revnum = revnum;
 
-    if ((++commitCount % CommandLineParser::instance()->optionArgument(QLatin1String("commit-interval"), QLatin1String("10000")).toInt()) == 0) {
+    if ((++commitCount % CommandLineParser::instance()->optionArgument(QStringLiteral("commit-interval"), QStringLiteral("10000")).toInt()) == 0) {
         startFastImport();
         // write everything to disk every 10000 commits
         fastImport.write("checkpoint\n");
@@ -770,7 +771,7 @@ void FastImportRepository::createAnnotatedTag(const QString &ref, const QString 
                                               const QByteArray &log)
 {
     QString tagName = ref;
-    if (tagName.startsWith("refs/tags/"))
+    if (tagName.startsWith(QLatin1String("refs/tags/")))
         tagName.remove(0, 10);
 
     if (!annotatedTags.contains(tagName))
@@ -809,7 +810,7 @@ void FastImportRepository::finalizeTags()
         QByteArray message = tag.log;
         if (!message.endsWith('\n'))
             message += '\n';
-        if (CommandLineParser::instance()->contains("add-metadata"))
+        if (CommandLineParser::instance()->contains(QStringLiteral("add-metadata")))
             message += "\n" + formatMetadataMessage(tag.svnprefix, tag.revnum, tagName.toUtf8());
 
         {
@@ -832,7 +833,7 @@ void FastImportRepository::finalizeTags()
 
         // Append note to the tip commit of the supporting ref. There is no
         // easy way to attach a note to the tag itself with fast-import.
-        if (CommandLineParser::instance()->contains("add-metadata-notes")) {
+        if (CommandLineParser::instance()->contains(QStringLiteral("add-metadata-notes"))) {
             Repository::Transaction *txn = newTransaction(tag.supportingRef, tag.svnprefix, tag.revnum);
             txn->setAuthor(tag.author);
             txn->setDateTime(tag.dt);
@@ -858,7 +859,7 @@ void FastImportRepository::saveBranchNotes()
     if (branchNotes.isEmpty())
         return;
 
-    QFile branchNotesFile(name + "/" + branchNotesFileName(name));
+    QFile branchNotesFile(name + QStringLiteral("/") + branchNotesFileName(name));
     branchNotesFile.open(QIODevice::WriteOnly);
     QDataStream branchNotesStream(&branchNotesFile);
     branchNotesStream << branchNotes;
@@ -874,7 +875,7 @@ FastImportRepository::msgFilter(QByteArray msg)
         if (filterMsg.state() == QProcess::Running)
             qFatal("filter process already running?");
 
-        filterMsg.start(CommandLineParser::instance()->optionArgument("msg-filter"));
+        filterMsg.start(CommandLineParser::instance()->optionArgument(QStringLiteral("msg-filter")));
 
         if(!(filterMsg.waitForStarted(-1)))
             qFatal("Failed to Start Filter %d %s", __LINE__, qPrintable(filterMsg.errorString()));
@@ -899,17 +900,17 @@ void FastImportRepository::startFastImport()
         // start the process
         QString marksFile = marksFileName(name);
         QStringList marksOptions;
-        marksOptions << "--import-marks=" + marksFile;
-        marksOptions << "--export-marks=" + marksFile;
-        marksOptions << "--force";
+        marksOptions << QStringLiteral("--import-marks=") + marksFile;
+        marksOptions << QStringLiteral("--export-marks=") + marksFile;
+        marksOptions << QStringLiteral("--force");
 
         fastImport.setStandardOutputFile(logFileName(name), QIODevice::Append);
         fastImport.setProcessChannelMode(QProcess::MergedChannels);
 
-        if (!CommandLineParser::instance()->contains("dry-run") && !CommandLineParser::instance()->contains("create-dump")) {
-            fastImport.start("git", QStringList() << "fast-import" << marksOptions);
+        if (!CommandLineParser::instance()->contains(QStringLiteral("dry-run")) && !CommandLineParser::instance()->contains(QStringLiteral("create-dump"))) {
+            fastImport.start(QStringLiteral("git"), QStringList() << QStringLiteral("fast-import") << marksOptions);
         } else {
-            fastImport.start("cat", QStringList());
+            fastImport.start(QStringLiteral("cat"), QStringList());
         }
         fastImport.waitForStarted(-1);
 
@@ -1032,7 +1033,7 @@ QIODevice *FastImportRepository::Transaction::addFile(const QString &path, int m
 
     // it is returned for being written to, so start the process in any case
     repository->startFastImport();
-    if (!CommandLineParser::instance()->contains("dry-run")) {
+    if (!CommandLineParser::instance()->contains(QStringLiteral("dry-run"))) {
         repository->fastImport.writeNoLog("blob\nmark :");
         repository->fastImport.writeNoLog(QByteArray::number(mark));
         repository->fastImport.writeNoLog("\ndata ");
@@ -1099,8 +1100,9 @@ bool FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
 
 int FastImportRepository::Transaction::commit()
 {
-    foreach (QString branchName, repository->branches.keys())
+    for (auto it = repository->branches.keyValueBegin(); it != repository->branches.keyValueEnd(); ++it)
     {
+        const QString &branchName = it->first;
         if (branchName.toUtf8().startsWith(branch + "/") || branch.startsWith((branchName + "/").toUtf8()))
         {
             qCritical() << "Branch" << branch << "conflicts with already existing branch" << branchName;
@@ -1122,7 +1124,7 @@ int FastImportRepository::Transaction::commit()
     QByteArray message = log;
     if (!message.endsWith('\n'))
         message += '\n';
-    if (CommandLineParser::instance()->contains("add-metadata"))
+    if (CommandLineParser::instance()->contains(QStringLiteral("add-metadata")))
         message += "\n" + Repository::formatMetadataMessage(svnprefix, revnum);
 
     // Call external message filter if provided
@@ -1190,7 +1192,7 @@ int FastImportRepository::Transaction::commit()
         }
     }
     // write the file deletions
-    if (deletedFiles.contains(""))
+    if (deletedFiles.contains(QLatin1String("")))
         repository->fastImport.write("deleteall\n");
     else
         foreach (QString df, deletedFiles)
@@ -1208,7 +1210,7 @@ int FastImportRepository::Transaction::commit()
            qPrintable(repository->name), branch.data());
 
     // Commit metadata note if requested
-    if (CommandLineParser::instance()->contains("add-metadata-notes"))
+    if (CommandLineParser::instance()->contains(QStringLiteral("add-metadata-notes")))
         commitNote(Repository::formatMetadataMessage(svnprefix, revnum), false);
 
     while (repository->fastImport.bytesToWrite())

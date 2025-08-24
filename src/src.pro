@@ -29,7 +29,7 @@ target.path = $$BINDIR
 DEPENDPATH += .
 QT = core
 
-_MIN_QT_VERSION = 5.14.0
+_MIN_QT_VERSION = 5.15.0
 
 !versionAtLeast(QT_VERSION, $${_MIN_QT_VERSION}) {
     error("Qt $${QT_VERSION} found but Qt >=$${_MIN_QT_VERSION} required, cannot continue.")
