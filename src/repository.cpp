@@ -575,8 +575,9 @@ void FastImportRepository::closeFastImport()
 void FastImportRepository::reloadBranches()
 {
     bool reset_notes = false;
-    foreach (QString branch, branches.keys()) {
-        Branch &br = branches[branch];
+    for (auto it = branches.keyValueBegin(); it != branches.keyValueEnd(); ++it) {
+        const QString &branch = it->first;
+        Branch &br = it->second;
 
         if (br.marks.isEmpty() || !br.marks.last())
             continue;
@@ -1099,8 +1100,9 @@ bool FastImportRepository::Transaction::commitNote(const QByteArray &noteText, b
 
 int FastImportRepository::Transaction::commit()
 {
-    foreach (QString branchName, repository->branches.keys())
+    for (auto it = repository->branches.keyValueBegin(); it != repository->branches.keyValueEnd(); ++it)
     {
+        const QString &branchName = it->first;
         if (branchName.toUtf8().startsWith(branch + "/") || branch.startsWith((branchName + "/").toUtf8()))
         {
             qCritical() << "Branch" << branch << "conflicts with already existing branch" << branchName;

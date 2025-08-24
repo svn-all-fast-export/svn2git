@@ -567,8 +567,8 @@ int SvnRevision::commit()
     // now create the commit
     if (fetchRevProps() != EXIT_SUCCESS)
         return EXIT_FAILURE;
-    foreach (Repository *repo, repositories.values()) {
-        repo->commit();
+    for (auto it = repositories.keyValueBegin(); it != repositories.keyValueEnd(); ++it) {
+        it->second->commit();
     }
 
     foreach (Repository::Transaction *txn, transactions) {

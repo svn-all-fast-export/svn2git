@@ -381,8 +381,8 @@ Stats::Private::Private()
 void Stats::Private::printStats() const
 {
     printf("\nRule stats\n");
-    foreach(const Rules::Match rule, m_usedRules.keys()) {
-        printf("%s was matched %i times\n", qPrintable(rule.info()), m_usedRules[rule]);
+    for (auto it = m_usedRules.keyValueBegin(); it != m_usedRules.keyValueEnd(); ++it) {
+        printf("%s was matched %i times\n", qPrintable(it->first.info()), it->second);
     }
 }
 
