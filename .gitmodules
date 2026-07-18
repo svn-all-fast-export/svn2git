@@ -9,4 +9,4 @@
 	url = https://github.com/bats-core/bats-support
 [submodule "test/libs/bats-file"]
 	path = test/libs/bats-file
-	url = https://github.com/tralston/bats-file
+	url = https://github.com/bats-core/bats-file
